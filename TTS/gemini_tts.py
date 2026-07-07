@@ -31,10 +31,10 @@ Google Gemini API의 네이티브 TTS 기능을 사용하여 텍스트를 음성
 
 오디오 태그 (영어 태그만 인식되나, 비영어 본문과 혼용 가능):
 
-  1. 비언어 사운드 — 태그 자체가 소리로 대체됨
+  1. 비언어 사운드: 태그 자체가 소리로 대체됨
      [sigh], [laughing], [uhm], [cough], [gasp], [giggles]
 
-  2. 스타일 수정자 — 뒤따르는 구절의 전달 방식 변경
+  2. 스타일 수정자: 뒤따르는 구절의 전달 방식 변경
      [whispering], [shouting], [robotic], [sarcasm], [excited], [bored],
      [curious], [scared], [tired], [mischievously], [panicked], [serious]
 
@@ -59,7 +59,7 @@ import traceback
 import re
 import wave
 
-# 기본 모델 — Gemini 3.1 Flash TTS Preview (2026-04)
+# 기본 모델: Gemini 3.1 Flash TTS Preview (2026-04)
 DEFAULT_MODEL = "gemini-3.1-flash-tts-preview"
 
 # 지원하는 30개 프리셋 음성
