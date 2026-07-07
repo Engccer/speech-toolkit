@@ -1,0 +1,7 @@
+google-genai>=2.10
+elevenlabs>=2.49
+speechify-api>=1.2
+requests>=2.32
+deepgram-sdk>=7.2
+mistralai>=2.5
+pyngrok>=8.1
