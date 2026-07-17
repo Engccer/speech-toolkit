@@ -37,6 +37,15 @@ POLL_INTERVAL = 5  # 초
 API_BASE = "https://apis.daglo.ai/stt/v1/async/transcripts"
 
 
+def _pause_for_exit():
+    """대화형 콘솔에서만 종료를 대기한다(더블클릭 실행 UX). 배치/파이프 실행에서는 조용히 통과."""
+    try:
+        if sys.stdin.isatty():
+            input("\nEnter를 눌러 종료...")
+    except EOFError:
+        pass
+
+
 def get_output_filename(input_file):
     """입력 파일 경로를 기반으로 출력 파일 경로 생성"""
     dir_path = os.path.dirname(os.path.abspath(input_file))
@@ -199,44 +208,56 @@ def save_transcript(text, output_file):
 
 
 def main():
-    server = None
+    # 명령줄 인수 파싱
+    import argparse
 
-    try:
-        # API 키 확인
-        if not API_KEY:
-            print("오류: DAGLO_API_KEY 환경변수가 설정되지 않았습니다.")
-            print("설정 방법: export DAGLO_API_KEY=\"your-api-key\"  (Windows: setx DAGLO_API_KEY \"your-api-key\")")
-            input("\nEnter를 눌러 종료...")
+    parser = argparse.ArgumentParser(
+        description="Daglo STT: 긴 음성 파일을 텍스트로 전사하며 화자 구분을 지원합니다."
+    )
+    parser.add_argument(
+        "input_file",
+        nargs="?",
+        help="입력 오디오/비디오 파일 경로 (생략 시 현재 폴더에서 자동 탐색)",
+    )
+    args = parser.parse_args()
+
+    # API 키 확인 (인수 파싱 뒤에 검증하여 --help는 키 없이도 동작)
+    if not API_KEY:
+        print("오류: DAGLO_API_KEY 환경변수가 설정되지 않았습니다.")
+        print("설정 방법: export DAGLO_API_KEY=\"your-api-key\"  (Windows: setx DAGLO_API_KEY \"your-api-key\")")
+        _pause_for_exit()
+        sys.exit(1)
+
+    # 입력 파일 결정
+    if args.input_file:
+        input_file = args.input_file
+        # 확장자 검사
+        ext = os.path.splitext(input_file)[1].lower()
+        if ext not in SUPPORTED_EXTENSIONS:
+            print(f"오류: 지원하지 않는 파일 형식입니다: {ext}")
+            print(f"지원 형식: {', '.join(SUPPORTED_EXTENSIONS)}")
+            _pause_for_exit()
+            sys.exit(1)
+        if not os.path.exists(input_file):
+            print(f"오류: 파일을 찾을 수 없습니다: {input_file}")
+            _pause_for_exit()
+            sys.exit(1)
+    else:
+        # 인수 없으면 현재 디렉토리에서 입력 파일 자동 탐색
+        input_file = find_input_file()
+        if not input_file:
+            print("오류: 입력 파일을 찾을 수 없습니다.")
+            print(f"지원 형식: {', '.join(SUPPORTED_EXTENSIONS)}")
+            _pause_for_exit()
             sys.exit(1)
 
-        # 명령줄 인수로 파일 경로 받기
-        if len(sys.argv) > 1:
-            input_file = sys.argv[1]
-            # 확장자 검사
-            ext = os.path.splitext(input_file)[1].lower()
-            if ext not in SUPPORTED_EXTENSIONS:
-                print(f"오류: 지원하지 않는 파일 형식입니다: {ext}")
-                print(f"지원 형식: {', '.join(SUPPORTED_EXTENSIONS)}")
-                input("\nEnter를 눌러 종료...")
-                sys.exit(1)
-            if not os.path.exists(input_file):
-                print(f"오류: 파일을 찾을 수 없습니다: {input_file}")
-                input("\nEnter를 눌러 종료...")
-                sys.exit(1)
-        else:
-            # 기존 방식: 현재 디렉토리에서 입력 파일 찾기
-            input_file = find_input_file()
-            if not input_file:
-                print("오류: 입력 파일을 찾을 수 없습니다.")
-                print(f"지원 형식: {', '.join(SUPPORTED_EXTENSIONS)}")
-                input("\nEnter를 눌러 종료...")
-                sys.exit(1)
+    print(f"입력 파일: {input_file}")
 
-        print(f"입력 파일: {input_file}")
+    # 출력 파일 경로 생성
+    output_file = get_output_filename(input_file)
 
-        # 출력 파일 경로 생성
-        output_file = get_output_filename(input_file)
-
+    server = None
+    try:
         # HTTP 서버 시작 (지정된 파일만 서빙)
         port = 8765
         print(f"로컬 HTTP 서버 시작 (포트 {port})...")
@@ -272,14 +293,14 @@ def main():
                 break
             elif status in ["transcript_error", "file_error"]:
                 print(f"오류 발생: {result.get('error', '알 수 없는 오류')}")
-                input("\nEnter를 눌러 종료...")
+                _pause_for_exit()
                 sys.exit(1)
             else:
                 time.sleep(POLL_INTERVAL)
 
     except Exception as e:
         print(f"\n오류 발생: {e}")
-        input("\nEnter를 눌러 종료...")
+        _pause_for_exit()
         sys.exit(1)
 
     finally:
@@ -289,7 +310,7 @@ def main():
         if server:
             server.shutdown()
 
-    input("\nEnter를 눌러 종료...")
+    _pause_for_exit()
 
 
 if __name__ == "__main__":

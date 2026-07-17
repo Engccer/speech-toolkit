@@ -71,7 +71,7 @@ python TTS/elevenlabs_tts.py --list-tags
 
 ## OpenAI TTS
 
-기본 모델: **gpt-4o-mini-tts** (snapshot `gpt-4o-mini-tts-2025-12-15`). 13개 빌트인 음성, 공식 권장은 **marin / cedar** (gpt_realtime.py와 동일 풀).
+기본 모델: **gpt-4o-mini-tts** (snapshot `gpt-4o-mini-tts-2025-12-15`). 13개 빌트인 음성, 공식 권장은 **marin / cedar**.
 
 ```bash
 python TTS/openai_tts.py input.txt

@@ -35,6 +35,19 @@ def main():
         print(f"상세: {e}")
         return
 
+    # 명령줄 인수 파싱
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Mistral STT (Voxtral Transcribe 2): 음성 파일을 텍스트로 전사하며 화자 구분과 타임스탬프를 지원합니다."
+    )
+    parser.add_argument(
+        "input_file",
+        nargs="?",
+        help="입력 오디오/비디오 파일 경로 (생략 시 현재 폴더에서 자동 탐색)",
+    )
+    args = parser.parse_args()
+
     # API 키 설정
     try:
         api_key = os.environ["MISTRAL_API_KEY"]
@@ -108,11 +121,9 @@ def main():
 
         return ""
 
-    # 명령줄 인수로 파일 경로 받기
-    print(f"인수: {sys.argv}")
-
-    if len(sys.argv) > 1:
-        input_file = sys.argv[1]
+    # 명령줄 인수로 받은 파일 경로 처리
+    if args.input_file:
+        input_file = args.input_file
         print(f"입력 경로: {input_file}")
 
         ext = os.path.splitext(input_file)[1].lower()
@@ -124,7 +135,7 @@ def main():
             print(f"오류: 파일을 찾을 수 없습니다: {input_file}")
             return
     else:
-        # 기존 방식: 현재 디렉토리에서 입력 파일 찾기
+        # 인수 없으면 현재 디렉토리에서 입력 파일 자동 탐색
         input_file = find_input_file()
         if not input_file:
             print("오류: 입력 파일을 찾을 수 없습니다.")

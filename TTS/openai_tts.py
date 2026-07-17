@@ -23,7 +23,7 @@ OpenAI Audio API(/v1/audio/speech)로 텍스트를 자연스러운 음성으로 
     --list-models           모델 목록 출력
 
 환경 변수:
-    OPENAI_API_KEY          OpenAI API 키 (gpt_realtime.py와 공용)
+    OPENAI_API_KEY          OpenAI API 키
 
 입력: .txt, .md 파일 또는 명령줄 텍스트 인자
 출력: [파일명]_openai.mp3 (포맷 변경 시 확장자 자동 반영)
