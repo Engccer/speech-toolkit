@@ -15,3 +15,5 @@
 - `--help`(또는 `--list-voices`류 옵션)는 API 키 없이도 동작해야 한다.
 
 문서 갱신: 스크립트 옵션이 바뀌면 `SKILL.md`의 라우팅 표와 `references/tts.md`·`references/stt.md`의 상세 옵션을 함께 갱신한다.
+
+사본 동기화: `TTS/elevenlabs_tts.py`는 abridge 저장소( https://github.com/Engccer/abridge )에 `scripts/elevenlabs_tts.py`로 동봉돼 있다(오디오북 후처리의 자체 완결성 확보 목적, 사본 상단에 출처 주석 있음). 이 파일을 수정하면 abridge의 사본도 같은 내용으로 갱신해 함께 커밋·푸시한다.
