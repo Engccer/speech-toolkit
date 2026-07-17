@@ -5,7 +5,7 @@
 | `TTS/gemini_tts.py` | WAV (`_gemini_tts.wav`) | `GEMINI_API_KEY` | 단일/다중 화자, 30개 프리셋, 200+ 오디오 태그 |
 | `TTS/elevenlabs_tts.py` | MP3 (`_elevenlabs.mp3`) | `ELEVENLABS_API_KEY` | v3, 단일+다중 통합 (자동 감지) |
 | `TTS/openai_tts.py` | MP3 (`_openai.mp3`) | `OPENAI_API_KEY` | gpt-4o-mini-tts, 13개 음성, `--instructions` 자연어 스티어링, 자동 청크 분할 |
-| `TTS/speechify_tts.py` | MP3 (`_speechify.mp3`) | `SPEECHIFY_API_KEY` | simba-3.0, SSML 변환(속도·피치·볼륨·감정·정지) |
+| `TTS/speechify_tts.py` | MP3 (`_speechify.mp3`) | `SPEECHIFY_API_KEY` | simba-3.2, SSML 변환(속도·피치·볼륨·감정·정지) |
 
 ## Gemini TTS
 
