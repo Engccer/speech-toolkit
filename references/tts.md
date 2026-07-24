@@ -67,7 +67,13 @@ python TTS/elevenlabs_tts.py --list-tags
 
 **API 제약**: `text_to_dialogue` API는 `voice_settings`(속도·안정성)를 미지원 → `--speed`, `--stability`는 단일 모드에서만 적용됨.
 
+한국어 프리셋 7종(Yuna·Kelee 여성, DoHyeon·Seojin·Jason·Hyunsu·Min 남성) + 영어 2종. 다중 화자 대본은 화자마다 다른 프리셋을 배정해야 구분이 되므로, 화자가 4명 이상이면 `--voice-map`으로 명시 지정한다(미지정 시 프리셋 순서대로 자동 순환).
+
 전체 음성 목록: `python TTS/elevenlabs_tts.py --list-voices`.
+
+### text_to_dialogue 입력 길이
+
+한 요청의 총 입력이 길면 실패하거나 뒷부분이 잘린다. **엔트리 총합 2,000자 내외로 청크를 나눠 호출하고 ffmpeg으로 결합**한다. 청크 경계는 화자 전환 지점에 두어야 문장이 끊기지 않는다.
 
 ## OpenAI TTS
 
