@@ -1,6 +1,6 @@
 ---
 name: speech-toolkit
-description: 텍스트→음성(TTS)과 음성→텍스트(STT) 변환 CLI 스크립트 모음. TTS는 Gemini/ElevenLabs/OpenAI/Speechify 4종, STT는 Daglo/Deepgram/ElevenLabs/Gemini/Mistral 5종. 다음 요청에 사용: 텍스트를 음성으로 변환, 나레이션·오디오북 음원 생성, 음성·영상 파일 전사, 회의 녹음 텍스트 변환, TTS, STT, transcription. Use for text-to-speech (TTS) and speech-to-text (STT): generate narration audio from text or transcribe audio/video files to text with multiple AI providers.
+description: "텍스트→음성(TTS)과 음성→텍스트(STT) 변환 CLI 스크립트 모음. TTS는 Gemini/ElevenLabs/OpenAI/Speechify 4종, STT는 Daglo/Deepgram/ElevenLabs/Gemini/Mistral 5종. 다음 요청에 사용: 텍스트를 음성으로 변환, 나레이션·오디오북 음원 생성, 음성·영상 파일 전사, 회의 녹음 텍스트 변환, TTS, STT, transcription. Use for text-to-speech (TTS) and speech-to-text (STT): generate narration audio from text or transcribe audio/video files to text with multiple AI providers."
 license: MIT
 metadata:
   version: "1.0.0"
