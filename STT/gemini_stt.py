@@ -146,7 +146,7 @@ def main():
                 raise Exception(f"파일 처리 실패: {uploaded_file.state.name}")
             print("파일 준비 완료")
             response = client.models.generate_content(
-                model="gemini-3.6-flash",
+                model="gemini-3.7-flash",
                 contents=[
                     uploaded_file,
                     prompt
@@ -157,7 +157,7 @@ def main():
     else:
         # 20MB 미만인 경우 인라인 데이터 사용
         response = client.models.generate_content(
-            model="gemini-3.6-flash",
+            model="gemini-3.7-flash",
             contents=[
                 types.Part.from_bytes(data=audio_data, mime_type=mime_type),
                 prompt
