@@ -5,7 +5,8 @@ Speechify API (Python SDK)를 사용하여 텍스트 파일을 MP3로 변환하�
 
 사용법:
     python speechify_tts.py [파일경로] [옵션]
-    python speechify_tts.py input.txt --voice george --model simba-3.2
+    python speechify_tts.py input.txt --voice george        # 기본: simba-3.0
+  python speechify_tts.py input.txt --voice harper_32 --model simba-3.2   # 영어 전용 최신
 
 입력:
     - 명령줄 인수로 지정한 .txt 또는 .md 파일 (지정하지 않을 경우 현재 디렉토리에서 자동 탐색)
@@ -21,7 +22,11 @@ from speechify import Speechify
 
 # 기본 설정값
 DEFAULT_VOICE = 'george'
-DEFAULT_MODEL = 'simba-3.2'
+# simba-3.0이 기본이다. simba-3.2는 영어 전용(_32 접미사 음성 7개, en-US/en-GB 단일 언어)이라
+# 한국어를 못 읽고, DEFAULT_VOICE를 포함한 나머지 카탈로그 393개 음성에서 400을 낸다.
+# simba-3.0은 카탈로그 400개 음성을 전부 받고 한국어 음성 15개를 포함한다.
+# 영어 최신 품질이 필요하면 --model simba-3.2 --voice harper_32 처럼 둘을 함께 지정할 것.
+DEFAULT_MODEL = 'simba-3.0'
 
 def escape_xml(text):
     """특수 문자를 XML 엔티티로 이스케이프합니다."""
@@ -85,7 +90,8 @@ def main():
     parser = argparse.ArgumentParser(description="Speechify TTS Python CLI")
     parser.add_argument("file_path", nargs="?", help="변환할 .txt 또는 .md 파일 경로")
     parser.add_argument("-v", "--voice", default=DEFAULT_VOICE, help=f"목소리 ID (기본값: {DEFAULT_VOICE})")
-    parser.add_argument("-m", "--model", default=DEFAULT_MODEL, help=f"합성 모델 (기본값: {DEFAULT_MODEL})")
+    parser.add_argument("-m", "--model", default=DEFAULT_MODEL,
+                        help=f"합성 모델 (기본값: {DEFAULT_MODEL}). simba-3.2는 영어 전용이며 _32 접미사 음성만 지원")
     parser.add_argument("-o", "--output", help="출력 MP3 파일 경로 (기본값: [입력파일명]_speechify.mp3)")
     
     # SSML 상세 제어 옵션
