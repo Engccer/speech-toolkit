@@ -1,8 +1,8 @@
 # speech-toolkit
 
-AI API 기반 텍스트↔음성 변환 CLI 스크립트 모음(TTS 4종 + STT 5종). 코딩 에이전트(Claude Code, Codex 등)의 스킬로도, 단독 CLI로도 쓸 수 있다.
+AI API 기반 텍스트↔음성 변환 CLI 스크립트 모음(TTS 4종 + STT 6종). 코딩 에이전트(Claude Code, Codex 등)의 스킬로도, 단독 CLI로도 쓸 수 있다.
 
-CLI scripts for text-to-speech (4 providers) and speech-to-text (5 providers). Works standalone or as an agent skill.
+CLI scripts for text-to-speech (4 providers) and speech-to-text (6 providers). Works standalone or as an agent skill.
 
 ## 설치
 
@@ -13,7 +13,7 @@ git clone https://github.com/Engccer/speech-toolkit
 pip install -r requirements.txt
 ```
 
-Python 3.12 기준. `STT/daglo_stt.py`만 ngrok 계정(pyngrok)이 추가로 필요하다.
+Python 3.12 기준. `STT/daglo_stt.py`만 ngrok 계정(pyngrok)이 추가로 필요하고, `STT/gemini_transcribe_stt.py`는 길이 상한 초과 파일을 자동 분할할 때 ffmpeg/ffprobe를 쓴다.
 
 ## 스크립트와 필요 API 키
 
@@ -24,7 +24,8 @@ Python 3.12 기준. `STT/daglo_stt.py`만 ngrok 계정(pyngrok)이 추가로 필
 | TTS(다국어·음성 라이브러리) | `TTS/elevenlabs_tts.py` | `ELEVENLABS_API_KEY` |
 | TTS(Speechify) | `TTS/speechify_tts.py` | `SPEECHIFY_API_KEY` |
 | STT(빠름·화자 분리) | `STT/deepgram_stt.py` | `DEEPGRAM_API_KEY` |
-| STT(자연스러운 한국어·화자 구분) | `STT/gemini_stt.py` | `GEMINI_API_KEY` |
+| STT(장시간·자연스러운 한국어) | `STT/gemini_stt.py` | `GEMINI_API_KEY` |
+| STT(정확도 최우선·전용 ASR) | `STT/gemini_transcribe_stt.py` | `GEMINI_API_KEY` |
 | STT(한국어 특화) | `STT/daglo_stt.py` | `DAGLO_API_KEY` (+ngrok) |
 | STT(ElevenLabs) | `STT/elevenlabs_stt.py` | `ELEVENLABS_API_KEY` |
 | STT(Voxtral) | `STT/mistral_stt.py` | `MISTRAL_API_KEY` |
