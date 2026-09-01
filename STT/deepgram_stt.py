@@ -20,6 +20,11 @@ Deepgram STT (Speech-to-Text) 스크립트
                    Nova-3 March 2026 다국어 WER 개선(batch ~34%↓)의 최대 수혜.
                    (--multi 가 --lang 보다 우선)
 
+타임스탬프 (선택):
+    --timestamps   기본 출력에 더해 [파일명]_deepgram_ts.txt를 함께 저장한다.
+                   발화 단위마다 [HH:MM:SS] 시작 시각과 화자 번호를 앞에 붙인다.
+                   긴 녹음에서 "어느 대목에 몇 분을 썼는가"를 되짚을 때 쓴다.
+
 키텀 프롬프팅 (선택):
     입력 파일과 같은 디렉토리에 keyterms.txt가 있으면 자동 로드.
     - 한 줄에 한 키텀, '#'으로 시작하는 줄과 빈 줄은 무시
@@ -97,6 +102,23 @@ def main():
                     terms.append(term)
         return terms
 
+    def format_transcript_with_timestamps(response):
+        """발화마다 [HH:MM:SS] 시작 시각과 화자 번호를 붙여 포맷팅합니다."""
+        utterances = getattr(response.results, "utterances", None)
+        if not utterances:
+            return ""
+
+        lines = []
+        for utterance in utterances:
+            text = utterance.transcript.strip()
+            if not text:
+                continue
+            start = int(utterance.start)
+            stamp = f"{start // 3600:02d}:{start % 3600 // 60:02d}:{start % 60:02d}"
+            lines.append(f"[{stamp}] [화자 {utterance.speaker + 1}] {text}")
+
+        return "\n".join(lines)
+
     def format_transcript_with_speakers(response):
         """화자별로 텍스트를 포맷팅합니다."""
         output_lines = []
@@ -148,6 +170,11 @@ def main():
         "--multi",
         action="store_true",
         help="다국어 모드(language=multi). 한·영 코드스위칭 녹음에 권장. --lang보다 우선.",
+    )
+    parser.add_argument(
+        "--timestamps",
+        action="store_true",
+        help="[파일명]_deepgram_ts.txt에 발화별 [HH:MM:SS]·화자 번호를 붙인 판을 함께 저장.",
     )
     args = parser.parse_args()
 
@@ -230,6 +257,16 @@ def main():
 
         print(f"\n전사 완료! {len(transcript)}글자가 저장되었습니다.")
         print(f"출력 파일: {output_file}")
+
+        if args.timestamps:
+            ts_transcript = format_transcript_with_timestamps(response)
+            if ts_transcript:
+                ts_file = output_file.replace("_deepgram.txt", "_deepgram_ts.txt")
+                with open(ts_file, "w", encoding="utf-8") as f:
+                    f.write(ts_transcript)
+                print(f"타임스탬프 판: {ts_file}")
+            else:
+                print("타임스탬프 판을 만들지 못했습니다(발화 단위 결과 없음).")
 
     except ApiError as e:
         print(f"API 오류 (Status {e.status_code}): {e.body}")
