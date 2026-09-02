@@ -1,9 +1,9 @@
 ---
 name: speech-toolkit
-description: "텍스트→음성(TTS)과 음성→텍스트(STT) 변환 CLI 스크립트 모음. TTS는 Gemini/ElevenLabs/OpenAI/Speechify 4종, STT는 Daglo/Deepgram/ElevenLabs/Gemini/Gemini 3.5 Transcribe/Mistral 6종. 다음 요청에 사용: 텍스트를 음성으로 변환, 나레이션·오디오북 음원 생성, 음성·영상 파일 전사, 회의 녹음 텍스트 변환, TTS, STT, transcription. Use for text-to-speech (TTS) and speech-to-text (STT): generate narration audio from text or transcribe audio/video files to text with multiple AI providers."
+description: "텍스트→음성(TTS)과 음성→텍스트(STT) 변환 CLI 스크립트 모음. TTS는 Gemini/ElevenLabs/OpenAI/Speechify 4종, STT는 Daglo/Deepgram/ElevenLabs/Gemini/Gemini 3.5 Transcribe/Meta Muse/Mistral 7종. 다음 요청에 사용: 텍스트를 음성으로 변환, 나레이션·오디오북 음원 생성, 음성·영상 파일 전사, 회의 녹음 텍스트 변환, TTS, STT, transcription. Use for text-to-speech (TTS) and speech-to-text (STT): generate narration audio from text or transcribe audio/video files to text with multiple AI providers."
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # speech-toolkit
@@ -27,6 +27,7 @@ metadata:
 | STT(정확도 최우선·전용 ASR) | `STT/gemini_transcribe_stt.py` | `GEMINI_API_KEY` |
 | STT(한국어 특화) | `STT/daglo_stt.py` | `DAGLO_API_KEY` (+ngrok) |
 | STT(ElevenLabs) | `STT/elevenlabs_stt.py` | `ELEVENLABS_API_KEY` |
+| STT(실시간급 지연·다화자 20명+) | `STT/muse_stt.py` | `META_API_KEY` |
 | STT(Voxtral) | `STT/mistral_stt.py` | `MISTRAL_API_KEY` |
 
 상세 옵션은 `references/tts.md`·`references/stt.md` 참조(필요할 때만 로드).
@@ -39,4 +40,5 @@ ElevenLabs는 공식 CLI도 있다. 강제 정렬(자막·타임스탬프), 발�
 python TTS/gemini_tts.py report.md --voice Kore
 python STT/deepgram_stt.py meeting.m4a --lang ko
 python STT/gemini_transcribe_stt.py meeting.m4a --lang ko-KR
+python STT/muse_stt.py meeting.m4a --lang ko,en --timestamps
 ```

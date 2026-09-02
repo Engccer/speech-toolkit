@@ -5,3 +5,4 @@ __pycache__/
 *.mp4
 테스트_*.txt
 .env
+.sanitize.local.md

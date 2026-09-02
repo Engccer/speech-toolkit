@@ -1,6 +1,6 @@
 # STT (음성 → 텍스트)
 
-6개 엔진 모두 화자 구분(diarization) 지원. 파일 크기·길이·정확도·언어로 선택.
+7개 엔진 모두 화자 구분(diarization) 지원. 파일 크기·길이·정확도·언어로 선택.
 
 | 도구 | 모델 | 화자 구분 | 최대 | 환경변수 | 특이사항 |
 |------|------|----------|------|----------|---------|
@@ -10,6 +10,7 @@
 | `STT/deepgram_stt.py` | Nova-3 | O | 제한없음 | `DEEPGRAM_API_KEY` | 한국어 기본 설정. 스마트 포맷팅, 단락 구분 |
 | `STT/mistral_stt.py` | Voxtral Mini Transcribe v2 | O | 1 GB / 3시간 | `MISTRAL_API_KEY` | 13개 언어. **$0.003/분**. 세그먼트 타임스탬프 |
 | `STT/daglo_stt.py` | Daglo (비동기) | O | 제한없음 | `DAGLO_API_KEY` | **ngrok 터널 필요** (로컬 파일 호스팅용) |
+| `STT/muse_stt.py` | Muse Voice Transcribe 1.0 | O(20명+) | 10분/요청 (초과분 자동 분할) | `META_API_KEY` | Meta Model API. **$0.003/분**. 스트리밍 WER 3.1%. 언어·키워드 바이어싱, 코드 스위칭. ffmpeg 필수 |
 
 ## 입력 포맷
 
@@ -19,6 +20,7 @@
 | Gemini | MP3, M4A, WAV, FLAC, AAC, OGG, AIFF |
 | Gemini 3.5 Transcribe | MP3, M4A, WAV, FLAC, AAC, OGG, AIFF, MP4, MOV, AVI, WEBM |
 | Deepgram | MP3, M4A, WAV, FLAC, AAC, OGG, AIFF, MP4, MOV, AVI, WEBM |
+| Muse | MP3, M4A, WAV, FLAC, AAC, OGG, AIFF, MP4, MOV, AVI, WEBM, MKV (모두 ffmpeg로 PCM WAV 변환 후 전송) |
 | Mistral | MP3, M4A, WAV, FLAC, OGG |
 | Daglo | MP3, M4A, WAV, FLAC, AAC, OGG, MP4, MOV, AVI |
 
@@ -29,6 +31,7 @@ python STT/gemini_stt.py meeting.m4a              # 9.5시간까지, Files API �
 python STT/gemini_transcribe_stt.py meeting.m4a --lang ko-KR   # 전용 ASR, 화자 분리 기본
 python STT/elevenlabs_stt.py interview.mp3        # 2GB까지
 python STT/deepgram_stt.py podcast.wav            # 한국어 기본, 빠름
+python STT/muse_stt.py meeting.m4a --lang ko,en   # 한·영 코드 스위칭, 화자 분리 기본
 python STT/mistral_stt.py lecture.flac            # 1GB/3시간, $0.003/분
 python STT/daglo_stt.py recording.m4a             # ngrok 사전 설정 필요
 ```
@@ -43,6 +46,8 @@ python STT/daglo_stt.py recording.m4a             # ngrok 사전 설정 필요
 - **파일 1~2GB** → ElevenLabs (단독 가능)
 - **영어 위주, 빠른 처리** → Deepgram (Nova-3, 스마트 포맷팅)
 - **다국어(13개), 비용 최우선** → Mistral ($0.003/분)
+- **한 녹음에 화자가 여럿(10명 이상)** → Muse (인식 모델 안에서 화자 귀속, 20명 이상 표방)
+- **한·영이 한 문장 안에서 섞이는 녹음** → Muse(네이티브 코드 스위칭) 또는 Deepgram `--multi`
 - **20MB+ 파일을 Gemini로** → Files API 자동 전환되니 추가 설정 불필요
 - **Daglo 사용 전** → ngrok 인증 토큰 등록 필수
 
@@ -73,6 +78,40 @@ python STT/gemini_transcribe_stt.py rec.m4a --vocab terms.txt     # 커스텀 �
 **출력 형식**: 화자 분리나 타임스탬프를 쓰면 `[spk_1] (0:00:01 - 0:00:12) 발화...` 형태로 화자 단위 묶음을 저장하고, 그 외에는 본문 텍스트를 그대로 저장한다.
 
 **가격**: 약 $0.005/분(입력 $2.00/1M 토큰). 무료 티어가 있다. 실시간 스트리밍용 `gemini-3.5-transcribe-live`는 이 스크립트가 다루지 않는다(파일 전사 전용).
+
+## Meta Muse Voice Transcribe 옵션
+
+Meta Superintelligence Labs가 2026-09-01 공개한 실시간 오디오 인식 모델을 파일 전사 엔드포인트
+(`POST https://api.meta.ai/v1/asr/transcribe`)로 호출한다. 스트리밍 ASR·화자 귀속·발화 종료 판정이
+후처리 단계가 아니라 인식 모델 안에서 한 번에 일어난다.
+
+```bash
+python STT/muse_stt.py rec.m4a                    # 화자 분리(DIARIZATION) 기본
+python STT/muse_stt.py rec.m4a --lang ko,en       # 언어 힌트 복수 지정(코드 스위칭)
+python STT/muse_stt.py rec.m4a --lang none        # 언어 힌트 없이
+python STT/muse_stt.py rec.m4a --no-diarize       # ENDPOINTING(발화 경계만)
+python STT/muse_stt.py rec.m4a --timestamps       # _muse_ts.txt 추가 저장
+```
+
+- **입력 변환 필수**: API가 mono 16-bit PCM WAV(16/24kHz)만 받으므로 스크립트가 항상 ffmpeg로
+  24kHz mono PCM WAV로 변환한 뒤 보낸다. ffmpeg/ffprobe가 PATH에 없으면 실행되지 않는다.
+- **10분·32MB 상한**: 요청당 오디오 10분, 본문 32MB가 상한이라 9분(540초) 단위로 자동 분할한다.
+  24kHz mono 16-bit는 초당 48KB여서 9분 조각이 약 25MB로 두 상한을 모두 밑돈다.
+- **화자 라벨은 세션 범위**: 분할되면 조각마다 라벨(A, B, ...)이 새로 시작한다. 스크립트가
+  `[화자 1-A]`처럼 조각 번호를 붙이고 출력 머리말에 경고를 남긴다. 조각을 가로지르는 화자 동일성이
+  중요하면 10분 이하로 잘라 쓰거나 Deepgram·Gemini를 쓴다.
+- **키워드**: 입력 파일과 같은 디렉토리의 `keyterms.txt`를 자동 로드해 `keywords`로 보낸다
+  (Deepgram과 같은 규약). 인식률을 올릴 뿐 표기를 보장하지는 않는다.
+- **언어 힌트**: `languageBias`는 강제가 아니라 힌트다. 지원 언어는 25종(아랍어·벵골어·네덜란드어·
+  영어·프랑스어·독일어·히브리어·힌디어·인도네시아어·이탈리아어·일본어·칸나다어·한국어·말레이어·
+  중국어(북경어)·마라티어·폴란드어·포르투갈어·스페인어·타갈로그어·타밀어·텔루구어·태국어·터키어·
+  베트남어). 코드(`ko`)로 주면 이름(`Korean`)으로 자동 변환한다.
+- **제공하지 않는 것**: 단어 단위 타임스탬프, 신뢰도 점수, 음향 이벤트·감정 인식, 전사문 재구성.
+  턴 단위 시각만 돌아온다. 단어 타임스탬프가 필요하면 Gemini 3.5 Transcribe를 쓴다.
+- **실시간 스트리밍**(`wss://api.meta.ai/v1/asr/realtime`)은 이 스크립트가 감싸지 않는다.
+  마이크 받아쓰기·라이브 자막이 필요하면 해당 WebSocket 엔드포인트를 직접 쓴다.
+- **요금·한도**: $0.18/오디오 시간(초 단위 절사 과금). 테넌트당 동시 스트림 8개, 시간당 1,000개.
+  실패·429 요청은 과금되지 않는다.
 
 ## Daglo ngrok 설정
 
