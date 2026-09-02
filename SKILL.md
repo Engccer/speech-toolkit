@@ -31,6 +31,8 @@ metadata:
 
 상세 옵션은 `references/tts.md`·`references/stt.md` 참조(필요할 때만 로드).
 
+ElevenLabs는 공식 CLI도 있다. 강제 정렬(자막·타임스탬프), 발음 사전, 더빙, 다화자 대본처럼 **위 스크립트가 감싸지 않은 기능**이 필요하면 `references/elevenlabs-cli.md`를 참조한다.
+
 ## 사용 예
 
 ```bash
