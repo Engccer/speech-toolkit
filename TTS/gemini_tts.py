@@ -54,6 +54,15 @@ Google Gemini API의 네이티브 TTS 기능을 사용하여 텍스트를 음성
 
 import os
 import sys
+
+# Windows 콘솔 기본 인코딩(cp949)에서 비-cp949 문자(ℹ, ⚠, ≈ 등)를 출력하면
+# UnicodeEncodeError로 스크립트가 죽는다. 출력물은 이미 저장된 뒤라 실질 피해는
+# 없지만 종료 코드가 1이 되어 호출부가 실패로 오인한다. (2026-09-07)
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 import argparse
 import traceback
 import re
