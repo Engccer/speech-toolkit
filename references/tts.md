@@ -2,28 +2,42 @@
 
 | 도구 | 출력 | 환경변수 | 비고 |
 |------|------|---------|------|
-| `TTS/gemini_tts.py` | WAV (`_gemini_tts.wav`) | `GEMINI_API_KEY` | 단일/다중 화자, 30개 프리셋, 200+ 오디오 태그 |
+| `TTS/gemini_tts.py` | WAV (`_gemini_tts.wav`) | `GEMINI_API_KEY` | 3.8 기본(Lite 선택), 단일/다중 화자, 30개 프리셋 + 확장 음성, 인라인 보컬 태그 |
 | `TTS/elevenlabs_tts.py` | MP3 (`_elevenlabs.mp3`) | `ELEVENLABS_API_KEY` | v3, 단일+다중 통합 (자동 감지) |
 | `TTS/openai_tts.py` | MP3 (`_openai.mp3`) | `OPENAI_API_KEY` | gpt-4o-mini-tts, 13개 음성, `--instructions` 자연어 스티어링, 자동 청크 분할 |
 | `TTS/speechify_tts.py` | MP3 (`_speechify.mp3`) | `SPEECHIFY_API_KEY` | simba-3.2, SSML 변환(속도·피치·볼륨·감정·정지) |
 
 ## Gemini TTS
 
-기본 모델: **gemini-3.1-flash-tts-preview** (2026-04 업데이트). 영어 태그 + 한국어 본문 혼합 OK.
+기본 모델: **gemini-3.8-flash-tts** (2026-09 정식판). 언어는 자동 감지한다. 저비용 대량 생성은 **gemini-3.8-flash-lite-tts**.
 
 ```bash
-python TTS/gemini_tts.py "안녕하세요"
+python TTS/gemini_tts.py input.txt
 python TTS/gemini_tts.py --list-voices              # 30개 프리셋
-python TTS/gemini_tts.py --list-tags                # 200+ 오디오 태그 목록
-python TTS/gemini_tts.py input.txt --temperature 0.7 --language-code ko-KR
-python TTS/gemini_tts.py input.txt --model gemini-3.1-flash-tts-preview
+python TTS/gemini_tts.py --list-tags                # 3.8 꺾쇠 태그 목록 (--model 레거시면 3.1 태그)
+python TTS/gemini_tts.py input.txt --style "천천히, 따뜻하게" --temperature 0.7
+python TTS/gemini_tts.py dialogue.txt --multi-speaker --voice1 Kore --voice2 Puck
+python TTS/gemini_tts.py input.txt --model gemini-3.8-flash-lite-tts
+python TTS/gemini_tts.py input.txt --model gemini-3.1-flash-tts-preview --language-code ko-KR
 ```
 
-옵션: `--list-voices` / `--list-tags` / `--temperature 0.0-2.0` / `--language-code ko-KR` / `--model <override>`.
+옵션: `--voice` / `--multi-speaker --voice1 --voice2` / `--style` / `--temperature 0.0-2.0` / `--model <override>` / `--language-code`(레거시 전용) / `--list-voices` / `--list-tags`.
 
-200+ 인라인 오디오 태그로 감정·페이싱 제어:
-- `[excited]`, `[whispering]`, `[long pause]`, `[laughing]` 등
-- 본문 안에 직접 삽입: `"여기서 [whispering] 비밀이야 [long pause] 그것은..."`
+| 모델 | 출력 요금 (1M tok) | 비고 |
+|------|------|------|
+| gemini-3.8-flash-tts | $18 (2026-12-31까지 무료) | 기본값. 표현력 우선 |
+| gemini-3.8-flash-lite-tts | $12 (2026-12-31까지 무료) | 대량·저비용 |
+| gemini-3.1-flash-tts-preview | $20 | 레거시 |
+
+### 3.8과 레거시(2.5·3.1)의 차이
+
+- **호출 경로**: 3.8 이후는 Interactions API를 REST로 직접 호출한다(SDK 불필요). 모델명이 `gemini-2.5-`·`gemini-3.1-`로 시작하면 기존 `generate_content` 경로를 쓴다.
+- **입력은 낭독 대본으로만 취급된다**: 본문 앞에 지시문을 붙이면 그대로 읽는다. 그래서 `--style`은 대사마다 `speech_metadata.style`로 전달된다.
+- **다중 화자**: 대사마다 화자 이름이 있어야 한다. `[화자1]`/`[화자2]` 태그를 파싱해 붙인다.
+- **태그 표기**: 3.8은 꺾쇠(`<laugh>`, `<whispers>`, `<long pause>`), 3.1은 대괄호(`[whispering]`, `[long pause]`).
+- **언어 코드**: 3.8은 `language_code`를 거부한다(자동 감지). 넘기면 안내 후 무시한다.
+- **응답 형식**: 3.8은 완성된 WAV, 레거시는 헤더 없는 PCM이다. 저장 시 자동 판별한다.
+- **음성**: 3.8은 프리셋 밖의 확장 라이브러리 음성·보이스 디자인 ID(`voice_...`)도 `--voice`에 그대로 넘길 수 있다.
 
 ### Gemini TTS 한도 (중요)
 
@@ -33,11 +47,11 @@ python TTS/gemini_tts.py input.txt --model gemini-3.1-flash-tts-preview
 | 입력 바이트 | 8,000 (Vertex AI) |
 | 출력 토큰 | 16,384 (~655초 ≈ **11분**) |
 
-**출력 한도 근접 시 후반부 내용이 무한 반복됨**: 긴 텍스트는 반드시 청크 분할 후 결합.
+3.8·3.1 모두 같다. **출력 한도 근접 시 후반부 내용이 무한 반복됨**: 긴 텍스트는 반드시 청크 분할 후 결합.
 
-`--style` 프리픽스는 긴 텍스트(~2000토큰+)에서 `INVALID_ARGUMENT` 오류를 유발하므로 **인라인 오디오 태그로 대체** 권장.
+레거시 모델에서 `--style` 프리픽스는 긴 텍스트(~2000토큰+)에서 `INVALID_ARGUMENT` 오류를 유발하므로 인라인 오디오 태그로 대체 권장.
 
-출처: ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-tts-preview
+출처: ai.google.dev/gemini-api/docs/speech-generation, ai.google.dev/gemini-api/docs/pricing
 
 ## ElevenLabs TTS
 

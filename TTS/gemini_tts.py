@@ -2,11 +2,16 @@
 Gemini TTS (Text-to-Speech) 스크립트
 Google Gemini API의 네이티브 TTS 기능을 사용하여 텍스트를 음성으로 변환합니다.
 
-기본 모델: gemini-3.1-flash-tts-preview (Preview, 2026-04 업데이트)
-  - 70+ 언어 지원
-  - 200+ 오디오 태그로 감정/페이싱/스타일 세밀 제어
-  - 30개 프리셋 음성
-  - 무료 티어 제공 (유료: 입력 $1/1M tok, 출력 $20/1M tok, 오디오=25tok/초)
+기본 모델: gemini-3.8-flash-tts (정식판, 2026-09)
+  - 130+ 언어 자동 감지 (--language-code 불필요)
+  - 30개 프리셋 음성 + 확장 음성 라이브러리·보이스 디자인 ID(voice_...) 사용 가능
+  - 2026-12-31까지 무료 (이후 입력 $1/1M tok, 출력 $18/1M tok)
+  - 저비용 대량용: gemini-3.8-flash-lite-tts (출력 $12/1M tok)
+
+모델별 호출 경로:
+  - 3.8 이후: Interactions API REST 직접 호출 (SDK 불필요). 입력은 낭독 대본으로만
+    취급되므로 --style은 대본이 아니라 speech_metadata.style로 전달한다.
+  - 2.5·3.1 (레거시): google-genai SDK generate_content. --style은 본문 앞에 붙는다.
 
 사용법:
     python gemini_tts.py [파일경로] [옵션]
@@ -16,10 +21,10 @@ Google Gemini API의 네이티브 TTS 기능을 사용하여 텍스트를 음성
     --multi-speaker         다중 화자 모드 활성화
     --voice1 NAME           다중 화자 모드에서 화자1 음성 (기본: Kore)
     --voice2 NAME           다중 화자 모드에서 화자2 음성 (기본: Puck)
-    --style TEXT            음성 스타일 지시 (프롬프트 프리픽스, 예: "천천히, 따뜻하게")
+    --style TEXT            음성 스타일 지시 (예: "천천히, 따뜻하게")
     --temperature FLOAT     음성 변동성 (0.0-2.0, 기본 1.0, 높을수록 풍부한 표현)
-    --language-code CODE    언어 코드 (예: ko-KR, en-US, en-IN, ja-JP)
-    --model NAME            모델 override (기본: gemini-3.1-flash-tts-preview)
+    --language-code CODE    언어 코드 (레거시 모델 전용, 예: ko-KR, en-US, ja-JP)
+    --model NAME            모델 override (기본: gemini-3.8-flash-tts)
     --list-voices           사용 가능한 음성 목록 출력
     --list-tags             오디오 태그 레퍼런스 출력
 
@@ -29,27 +34,13 @@ Google Gemini API의 네이티브 TTS 기능을 사용하여 텍스트를 음성
 입력: .txt, .md 파일
 출력: [파일명]_gemini_tts.wav
 
-오디오 태그 (영어 태그만 인식되나, 비영어 본문과 혼용 가능):
-
-  1. 비언어 사운드: 태그 자체가 소리로 대체됨
-     [sigh], [laughing], [uhm], [cough], [gasp], [giggles]
-
-  2. 스타일 수정자: 뒤따르는 구절의 전달 방식 변경
-     [whispering], [shouting], [robotic], [sarcasm], [excited], [bored],
-     [curious], [scared], [tired], [mischievously], [panicked], [serious]
-
-  3. 페이싱/속도
-     [short pause] ~250ms, [medium pause] ~500ms, [long pause] ~1000ms+
-     [very fast], [very slow], [extremely fast]
-
-예시 (한국어 + 영어 태그 혼합):
-  [excited] 오늘은 정말 멋진 하루였어요. [long pause] 믿을 수 없을 정도로.
-  [whispering] 이건 비밀인데, [gasp] 사실 나도 몰랐어.
+오디오 태그 (--list-tags로 모델별 목록 확인):
+  - 3.8: 꺾쇠 태그. 예) 이건 비밀인데 <whispers> 사실 나도 몰랐어. <laugh>
+  - 3.1: 대괄호 태그. 예) [whispering] 이건 비밀인데, [gasp] 사실 나도 몰랐어.
 
 주의:
-  - --style 프리픽스는 긴 텍스트(~2000토큰+)에서 INVALID_ARGUMENT 유발 위험. 인라인 태그로 대체 권장.
-  - 입력 8,192 토큰 / 출력 16,384 토큰 (~655초 ≈ 11분) 제한. 긴 텍스트는 분할 필요.
-  - Preview 모델이므로 스펙 변경 가능.
+  - 레거시 모델에서 --style 프리픽스는 긴 텍스트(~2000토큰+)에서 INVALID_ARGUMENT 유발 위험.
+  - 입력 8,192 토큰 제한 기준으로 경고한다. 긴 텍스트는 분할 필요.
 """
 
 import os
@@ -64,12 +55,21 @@ for _stream in (sys.stdout, sys.stderr):
     except Exception:
         pass
 import argparse
+import base64
+import json
 import traceback
 import re
+import urllib.error
+import urllib.request
 import wave
 
-# 기본 모델: Gemini 3.1 Flash TTS Preview (2026-04)
-DEFAULT_MODEL = "gemini-3.1-flash-tts-preview"
+# 기본 모델: Gemini 3.8 Flash TTS (2026-09 정식판)
+DEFAULT_MODEL = "gemini-3.8-flash-tts"
+
+# generate_content 경로를 쓰는 레거시 모델. 그 밖의 모델은 Interactions API로 호출한다.
+LEGACY_MODEL_PREFIXES = ("gemini-2.5-", "gemini-3.1-")
+
+INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
 
 # 지원하는 30개 프리셋 음성
 AVAILABLE_VOICES = [
@@ -96,8 +96,23 @@ COMMON_LANGUAGE_CODES = [
     ("ru-RU", "러시아어"),
 ]
 
-# 오디오 태그 레퍼런스 (--list-tags 출력용)
+# 3.8 인라인 보컬 태그 (--list-tags 출력용)
 AUDIO_TAGS_REFERENCE = {
+    "비언어 사운드": [
+        "<laugh>", "<chuckle>", "<giggle>", "<snicker>", "<cackle>", "<cheer>",
+        "<sigh>", "<breath>", "<heavy breath>", "<exhales>", "<gasp>", "<pant>",
+        "<cough>", "<sneeze>", "<yawn>", "<throat-clearing>", "<tsk>", "<pff>",
+        "<cry>", "<sob>", "<whimper>", "<groan>", "<moan>", "<argh>",
+        "<growl>", "<grunt>", "<grr>", "<hiss>", "<snort>",
+        "<scream>", "<shout>", "<shriek>", "<whispers>",
+    ],
+    "페이싱": [
+        "<short pause>", "<long pause>",
+    ],
+}
+
+# 레거시(3.1) 오디오 태그 레퍼런스
+LEGACY_AUDIO_TAGS_REFERENCE = {
     "비언어 사운드 (태그 자체가 소리로 대체됨)": [
         "[sigh]", "[laughing]", "[giggles]", "[uhm]", "[cough]", "[gasp]",
     ],
@@ -120,7 +135,7 @@ AUDIO_TAGS_REFERENCE = {
 # 지원하는 입력 파일 확장자
 SUPPORTED_EXTENSIONS = ['.txt', '.md']
 
-# Gemini TTS 오디오 설정 (API 반환 형식: audio/L16;codec=pcm;rate=24000)
+# 레거시 raw PCM 응답을 WAV로 감쌀 때의 설정 (audio/L16;codec=pcm;rate=24000)
 SAMPLE_RATE = 24000
 SAMPLE_WIDTH = 2  # 16bit = 2 bytes
 CHANNELS = 1  # mono
@@ -130,8 +145,13 @@ TOKEN_WARNING_THRESHOLD = 7500
 CHARS_PER_TOKEN_ESTIMATE = 4
 
 
-def save_wav(pcm_data, output_file):
-    """Raw PCM 데이터를 WAV 파일로 저장"""
+def save_wav(audio_data, output_file):
+    """오디오를 WAV 파일로 저장. 이미 WAV(3.8 응답)면 그대로 쓰고, raw PCM(레거시)이면 헤더를 붙인다."""
+    if audio_data[:4] == b"RIFF":
+        with open(output_file, 'wb') as f:
+            f.write(audio_data)
+        return
+    pcm_data = audio_data
     with wave.open(output_file, 'wb') as wav_file:
         wav_file.setnchannels(CHANNELS)
         wav_file.setsampwidth(SAMPLE_WIDTH)
@@ -169,14 +189,43 @@ def list_voices():
     print("\n사용 예: python gemini_tts.py input.txt --voice Kore")
 
 
-def list_tags():
-    """오디오 태그 레퍼런스 출력"""
+def is_legacy_model(model):
+    """generate_content 경로를 쓰는 레거시 모델(2.5·3.1)인지 판정"""
+    return model.startswith(LEGACY_MODEL_PREFIXES)
+
+
+def list_tags(model):
+    """모델에 맞는 오디오 태그 레퍼런스 출력"""
+    if is_legacy_model(model):
+        list_legacy_tags()
+        return
+
+    print(f"\n{model} 인라인 보컬 태그 레퍼런스")
+    print("=" * 60)
+    print("태그는 본문에 꺾쇠로 삽입합니다. 비영어 본문과 혼합 사용 가능합니다.")
+    print("말투·감정처럼 문장 전체에 걸리는 지시는 태그 대신 --style을 쓰세요.\n")
+
+    for category, tags in AUDIO_TAGS_REFERENCE.items():
+        print(f"[{category}]")
+        for i in range(0, len(tags), 4):
+            print("  " + "  ".join(f"{t:<20}" for t in tags[i:i + 4]))
+        print()
+
+    print("=" * 60)
+    print("사용 예시:")
+    print('  이건 비밀인데 <whispers> 사실 나도 몰랐어. <laugh>')
+    print('  잠깐만요. <long pause> 이제 시작합니다.')
+    print("\n전체 목록: https://ai.google.dev/gemini-api/docs/speech-generation")
+
+
+def list_legacy_tags():
+    """레거시(3.1) 오디오 태그 레퍼런스 출력"""
     print("\nGemini 3.1 Flash TTS 오디오 태그 레퍼런스")
     print("=" * 60)
     print("태그는 본문에 인라인으로 삽입하며, 영어 태그만 인식됩니다.")
     print("비영어 본문과 혼합 사용 가능합니다.\n")
 
-    for category, tags in AUDIO_TAGS_REFERENCE.items():
+    for category, tags in LEGACY_AUDIO_TAGS_REFERENCE.items():
         print(f"[{category}]")
         # 한 줄에 3개씩 출력
         for i in range(0, len(tags), 3):
@@ -192,11 +241,13 @@ def list_tags():
     print("\n전체 목록: https://ai.google.dev/gemini-api/docs/speech-generation#transcript-tags")
 
 
-def validate_voice(voice_name):
-    """음성 이름 유효성 검사"""
+def validate_voice(voice_name, model):
+    """음성 이름 유효성 검사. 3.8 이후는 프리셋 밖의 라이브러리 음성·voice_ ID도 그대로 넘긴다."""
     for voice in AVAILABLE_VOICES:
         if voice.lower() == voice_name.lower():
             return voice
+    if not is_legacy_model(model):
+        return voice_name
     return None
 
 
@@ -257,7 +308,7 @@ def _build_generate_config(types, speech_config, temperature=None):
     return types.GenerateContentConfig(**kwargs)
 
 
-def single_speaker_tts(client, types, text, voice_name, model,
+def legacy_single_speaker_tts(client, types, text, voice_name, model,
                        style=None, temperature=None, language_code=None):
     """단일 화자 TTS 수행"""
     content = f"{style}: {text}" if style else text
@@ -285,14 +336,14 @@ def single_speaker_tts(client, types, text, voice_name, model,
     return response.candidates[0].content.parts[0].inline_data.data
 
 
-def multi_speaker_tts(client, types, text, voice1, voice2, model,
+def legacy_multi_speaker_tts(client, types, text, voice1, voice2, model,
                       style=None, temperature=None, language_code=None):
     """다중 화자 TTS 수행"""
     segments = parse_multi_speaker_text(text)
 
     if not segments:
         print("경고: 화자 태그를 찾을 수 없습니다. 단일 화자로 처리합니다.")
-        return single_speaker_tts(
+        return legacy_single_speaker_tts(
             client, types, text, voice1, model,
             style=style, temperature=temperature, language_code=language_code,
         )
@@ -342,9 +393,99 @@ def multi_speaker_tts(client, types, text, voice1, voice2, model,
     return response.candidates[0].content.parts[0].inline_data.data
 
 
+def interactions_tts(api_key, turns, speakers, model, style=None, temperature=None):
+    """
+    Interactions API(3.8 이후)로 TTS 수행.
+    turns: [(speaker 이름 또는 None, 대사)], speakers: [(speaker 이름, 음성)].
+    단일 화자는 speakers를 [(None, 음성)]로 넘긴다.
+    """
+    content = []
+    for speaker, text in turns:
+        metadata = {"type": "speech_metadata"}
+        if speaker:
+            metadata["speaker"] = speaker
+        if style:
+            metadata["style"] = style
+        item = {"type": "text", "text": text}
+        if len(metadata) > 1:
+            item["annotations"] = [metadata]
+        content.append(item)
+
+    if len(speakers) == 1:
+        speech_config = [{"voice": speakers[0][1]}]
+    else:
+        speech_config = {
+            "mode": "conversational",
+            "speakers": [{"speaker": name, "voice": voice} for name, voice in speakers],
+        }
+
+    generation_config = {"speech_config": speech_config}
+    if temperature is not None:
+        generation_config["temperature"] = temperature
+
+    body = {
+        "model": model,
+        "input": [{"type": "user_input", "content": content}],
+        "response_format": {"type": "audio"},
+        "generation_config": generation_config,
+    }
+    request = urllib.request.Request(
+        INTERACTIONS_URL,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+    )
+    try:
+        # 출력 한도(~655초 분량)를 넘는 여유를 둔다
+        with urllib.request.urlopen(request, timeout=900) as response:
+            result = json.load(response)
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"HTTP {e.code}: {e.read().decode('utf-8', 'replace')}") from None
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"요청 실패({e.reason}). 시간 초과라면 텍스트를 분할해 보세요.") from None
+
+    usage = result.get("usage") or {}
+    if usage:
+        print(f"  토큰 사용: 입력 {usage.get('total_input_tokens')} + 출력 {usage.get('total_output_tokens')}"
+              f" = 합계 {usage.get('total_tokens')}")
+
+    for step in reversed(result.get("steps", [])):
+        for block in reversed(step.get("content", [])):
+            if block.get("type") == "audio":
+                return base64.b64decode(block["data"])
+    raise RuntimeError(f"응답에 오디오가 없습니다: {json.dumps(result, ensure_ascii=False)[:500]}")
+
+
+def single_speaker_tts(api_key, text, voice, model, style=None, temperature=None):
+    """단일 화자 TTS (3.8 이후)"""
+    info_parts = [f"음성: {voice}", f"모델: {model}"]
+    if temperature is not None:
+        info_parts.append(f"temperature: {temperature}")
+    print(f"음성 변환 중... ({', '.join(info_parts)})")
+    return interactions_tts(api_key, [(None, text)], [(None, voice)], model,
+                            style=style, temperature=temperature)
+
+
+def multi_speaker_tts(api_key, text, voice1, voice2, model, style=None, temperature=None):
+    """다중 화자 TTS (3.8 이후). 대사마다 speech_metadata.speaker를 붙인다."""
+    segments = parse_multi_speaker_text(text)
+    if not segments:
+        print("경고: 화자 태그를 찾을 수 없습니다. 단일 화자로 처리합니다.")
+        return single_speaker_tts(api_key, text, voice1, model, style=style, temperature=temperature)
+
+    print(f"다중 화자 모드: {len(segments)}개 세그먼트 감지")
+    print(f"  화자1: {voice1} / 화자2: {voice2} / 모델: {model}")
+    if temperature is not None:
+        print(f"  temperature: {temperature}")
+    print("음성 변환 중...")
+
+    turns = [(f"Speaker{seg['speaker']}", seg['text']) for seg in segments]
+    speakers = [("Speaker1", voice1), ("Speaker2", voice2)]
+    return interactions_tts(api_key, turns, speakers, model, style=style, temperature=temperature)
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description='Gemini TTS - 텍스트를 음성으로 변환 (기본: gemini-3.1-flash-tts-preview)',
+        description=f'Gemini TTS - 텍스트를 음성으로 변환 (기본: {DEFAULT_MODEL})',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 예시:
@@ -353,20 +494,20 @@ def main():
     python gemini_tts.py input.txt --voice Puck
 
   오디오 태그 (본문에 인라인 삽입):
-    # input.txt 내용: "[excited] 오늘은 멋진 날! [long pause] 정말로요."
+    # input.txt 내용: "이건 비밀인데 <whispers> 사실 나도 몰랐어. <laugh>"
     python gemini_tts.py input.txt --voice Aoede
 
-  언어 명시 + 변동성 제어:
-    python gemini_tts.py input.txt --language-code ko-KR --temperature 1.5
+  스타일 지시 + 변동성 제어:
+    python gemini_tts.py input.txt --style "천천히, 따뜻한 목소리로" --temperature 1.5
 
-  스타일 프리픽스 (짧은 텍스트 권장):
-    python gemini_tts.py input.txt --style "천천히, 따뜻한 목소리로"
-
-  다중 화자:
+  다중 화자 (본문에 [화자1] / [화자2] 태그):
     python gemini_tts.py dialogue.txt --multi-speaker --voice1 Kore --voice2 Puck
 
-  모델 override (예: 2.5로 폴백):
-    python gemini_tts.py input.txt --model gemini-2.5-flash-preview-tts
+  저비용 대량 생성:
+    python gemini_tts.py input.txt --model gemini-3.8-flash-lite-tts
+
+  레거시 모델로 폴백 (--language-code는 레거시 전용):
+    python gemini_tts.py input.txt --model gemini-3.1-flash-tts-preview --language-code ko-KR
 
   참조:
     python gemini_tts.py --list-voices
@@ -378,11 +519,11 @@ def main():
     parser.add_argument('--multi-speaker', action='store_true', help='다중 화자 모드')
     parser.add_argument('--voice1', default='Kore', help='다중 화자 화자1 음성')
     parser.add_argument('--voice2', default='Puck', help='다중 화자 화자2 음성')
-    parser.add_argument('--style', help='스타일 프리픽스 (예: "천천히, 따뜻하게")')
+    parser.add_argument('--style', help='스타일 지시 (예: "천천히, 따뜻하게")')
     parser.add_argument('--temperature', type=float, default=None,
                         help='음성 변동성 (0.0-2.0, 기본: 모델 기본값)')
     parser.add_argument('--language-code', dest='language_code', default=None,
-                        help='언어 코드 (예: ko-KR, en-US, ja-JP)')
+                        help='언어 코드, 레거시 모델 전용 (예: ko-KR, en-US, ja-JP)')
     parser.add_argument('--model', default=DEFAULT_MODEL,
                         help=f'모델명 override (기본: {DEFAULT_MODEL})')
     parser.add_argument('--list-voices', action='store_true', help='음성 목록 출력')
@@ -394,16 +535,18 @@ def main():
         list_voices()
         return
     if args.list_tags:
-        list_tags()
+        list_tags(args.model)
         return
 
-    try:
-        from google import genai
-        from google.genai import types
-    except ImportError:
-        print("오류: google-genai 패키지를 찾을 수 없습니다.")
-        print("설치 명령: pip install google-genai")
-        return
+    legacy = is_legacy_model(args.model)
+    if legacy:
+        try:
+            from google import genai
+            from google.genai import types
+        except ImportError:
+            print("오류: google-genai 패키지를 찾을 수 없습니다.")
+            print("설치 명령: pip install google-genai")
+            return
 
     try:
         api_key = os.environ["GEMINI_API_KEY"]
@@ -440,8 +583,8 @@ def main():
 
     # 음성 유효성
     if args.multi_speaker:
-        voice1 = validate_voice(args.voice1)
-        voice2 = validate_voice(args.voice2)
+        voice1 = validate_voice(args.voice1, args.model)
+        voice2 = validate_voice(args.voice2, args.model)
         if not voice1:
             print(f"오류: 알 수 없는 음성입니다: {args.voice1}")
             print("--list-voices 옵션으로 사용 가능한 음성을 확인하세요.")
@@ -451,7 +594,7 @@ def main():
             print("--list-voices 옵션으로 사용 가능한 음성을 확인하세요.")
             return
     else:
-        voice = validate_voice(args.voice)
+        voice = validate_voice(args.voice, args.model)
         if not voice:
             print(f"오류: 알 수 없는 음성입니다: {args.voice}")
             print("--list-voices 옵션으로 사용 가능한 음성을 확인하세요.")
@@ -474,20 +617,33 @@ def main():
 
     print(f"텍스트 길이: {len(text)}자 (추정 {estimated_tokens} 토큰)")
 
-    client = genai.Client(api_key=api_key)
-
-    if args.multi_speaker:
-        audio_data = multi_speaker_tts(
-            client, types, text, voice1, voice2, args.model,
-            style=args.style, temperature=args.temperature,
-            language_code=args.language_code,
-        )
+    if not legacy:
+        if args.language_code:
+            print(f"참고: {args.model} 모델은 언어를 자동 감지하므로 --language-code를 무시합니다.")
+        if args.multi_speaker:
+            audio_data = multi_speaker_tts(
+                api_key, text, voice1, voice2, args.model,
+                style=args.style, temperature=args.temperature,
+            )
+        else:
+            audio_data = single_speaker_tts(
+                api_key, text, voice, args.model,
+                style=args.style, temperature=args.temperature,
+            )
     else:
-        audio_data = single_speaker_tts(
-            client, types, text, voice, args.model,
-            style=args.style, temperature=args.temperature,
-            language_code=args.language_code,
-        )
+        client = genai.Client(api_key=api_key)
+        if args.multi_speaker:
+            audio_data = legacy_multi_speaker_tts(
+                client, types, text, voice1, voice2, args.model,
+                style=args.style, temperature=args.temperature,
+                language_code=args.language_code,
+            )
+        else:
+            audio_data = legacy_single_speaker_tts(
+                client, types, text, voice, args.model,
+                style=args.style, temperature=args.temperature,
+                language_code=args.language_code,
+            )
 
     output_file = get_output_filename(input_file)
     save_wav(audio_data, output_file)
