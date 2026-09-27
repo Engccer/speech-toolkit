@@ -282,7 +282,8 @@ def build_voice_mapping(speakers, custom_map_arg=None):
     for speaker in speakers:
         if speaker in mapping:
             continue
-        free = [p for p in VOICE_PRESETS if p['id'] not in mapping.values()]
+        taken = {mapping[s] for s in speakers if s in mapping}  # 대본에 있는 화자만 센다
+        free = [p for p in VOICE_PRESETS if p['id'] not in taken]
         if free:
             preset = free[0]
         else:

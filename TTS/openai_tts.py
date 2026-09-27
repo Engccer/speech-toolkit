@@ -36,7 +36,7 @@ OpenAI Audio API(/v1/audio/speech)로 텍스트를 자연스러운 음성으로 
 
 주의:
     - tts-1 / tts-1-hd는 --instructions 미지원 (gpt-4o-mini-tts 전용 기능)
-    - 4,096자 초과 시 문장 경계로 자동 분할 후 MP3 바이트 concat (mp3/opus/aac만 안전)
+    - --chunk-size(기본 3,000자) 초과 시 문장 경계로 자동 분할 후 바이트 concat (mp3/opus/aac/pcm만 안전)
     - 사용 정책상 합성 음성임을 최종 사용자에게 명시 의무
 
 참고:
@@ -97,7 +97,7 @@ KNOWN_MODELS = [
 ]
 
 SUPPORTED_FORMATS = ["mp3", "opus", "aac", "flac", "wav", "pcm"]
-SAFE_CONCAT_FORMATS = {"mp3", "opus", "aac"}  # 바이트 concat 가능한 스트림 포맷
+SAFE_CONCAT_FORMATS = {"mp3", "opus", "aac", "pcm"}  # 바이트 concat 가능한 포맷(pcm은 헤더 없음)
 
 SUPPORTED_EXTENSIONS = [".txt", ".md"]
 
@@ -374,7 +374,7 @@ def main():
     if len(chunks) > 1:
         print(f"청크 {len(chunks)}개로 분할 ({args.chunk_size}자 단위)")
         if args.fmt not in SAFE_CONCAT_FORMATS:
-            print(f"  ⚠ {args.fmt} 포맷은 단순 concat이 안전하지 않을 수 있음. mp3/opus/aac 권장.")
+            print(f"  ⚠ {args.fmt} 포맷은 단순 concat이 안전하지 않을 수 있음. mp3/opus/aac/pcm 권장.")
 
     # 청크별 합성
     audio_parts = []

@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 *.wav
 *.mp3
+*.pcm
 *.mp4
 테스트_*.txt
 .env

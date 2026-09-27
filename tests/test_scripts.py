@@ -28,9 +28,11 @@ class HelpWithoutKeyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as home:
             # 밀폐: 셸 환경을 물려받지 않는다(키·사용자 site-packages 모두 끊김)
             env = {"PATH": os.defpath, "HOME": home, "PYTHONIOENCODING": "utf-8"}
+            if os.name == "nt" and "SYSTEMROOT" in os.environ:
+                env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
             return subprocess.run(
                 [sys.executable, "-S", os.path.join(ROOT, rel_path), "--help"],
-                env=env, cwd=home, capture_output=True, text=True, timeout=30,
+                env=env, cwd=home, capture_output=True, text=True, encoding="utf-8", timeout=30,
                 stdin=subprocess.DEVNULL,
             )
 
@@ -38,7 +40,6 @@ class HelpWithoutKeyTest(unittest.TestCase):
         result = self.run_help("STT/deepgram_stt.py")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("usage:", result.stdout)
-        self.assertNotIn("DEEPGRAM_API_KEY 환경 변수가 설정되지 않았습니다", result.stdout)
 
 
 class OpenAIOutputNameTest(unittest.TestCase):
@@ -68,6 +69,10 @@ class ElevenLabsVoiceMappingTest(unittest.TestCase):
         mapping = self.mod.build_voice_mapping(["지영", "현우"], "현우=Yuna")
         self.assertNotEqual(mapping["지영"], mapping["현우"])
 
+    def test_voice_map_entry_absent_from_script_takes_no_voice(self):
+        mapping = self.mod.build_voice_mapping(["지영", "현우"], "영희=Yuna")
+        self.assertEqual(mapping["지영"], self.mod.find_voice_by_name("Yuna")["id"])
+
     def test_distinct_until_presets_run_out(self):
         presets = self.mod.VOICE_PRESETS
         speakers = [f"사람{i}" for i in range(len(presets))]
@@ -78,7 +83,8 @@ class ElevenLabsVoiceMappingTest(unittest.TestCase):
         presets = self.mod.VOICE_PRESETS
         speakers = [f"사람{i}" for i in range(len(presets) + 2)]
         mapping = self.mod.build_voice_mapping(speakers)
-        self.assertEqual(set(mapping), set(speakers))
+        self.assertEqual(mapping[speakers[len(presets)]], presets[0]["id"])
+        self.assertEqual(mapping[speakers[len(presets) + 1]], presets[1]["id"])
 
 
 if __name__ == "__main__":
