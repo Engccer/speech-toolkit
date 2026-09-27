@@ -10,10 +10,10 @@ metadata:
 
 텍스트↔음성 변환 CLI 스크립트 모음. 각 스크립트는 독립 실행형이며 공통 규약을 따른다:
 
-- 입력 파일을 명시한다. 인자 없이 실행하면 현재 폴더에서 처음 찾은 지원 파일 **하나**만 처리한다(`keyterms.txt`나 이전 결과 `*_deepgram.txt`가 걸릴 수 있다).
+- 입력 파일을 명시한다. 인자 없이 실행하면 현재 폴더에서 처음 찾은 지원 파일 **하나**만 처리한다(TTS는 `.txt`를 찾으므로 `keyterms.txt`나 이전 전사 결과가 걸릴 수 있다).
 - 출력 파일명은 `<입력>_<service>.<ext>` 형식이다(예: `meeting_deepgram.txt`, `report_gemini_tts.wav`).
 - API 키는 환경변수로만 받는다(하드코딩 금지).
-- 성공은 출력 파일이 생겼는지로 판정한다. 여러 스크립트가 키 부재·API 오류에도 종료 코드 0으로 끝난다.
+- 성공은 출력 파일이 새로 생겼거나 갱신됐는지로 판정한다. 여러 스크립트가 키 부재·API 오류에도 종료 코드 0으로 끝난다.
 - 의존성은 `pip install -r requirements.txt`. `muse_stt.py`는 ffmpeg가 늘, `gemini_transcribe_stt.py`는 상한을 넘는 파일을 나눌 때 ffmpeg/ffprobe가 필요하다.
 
 ## 라우팅
@@ -30,7 +30,7 @@ metadata:
 | STT(한국어 정확도 우선) | `STT/daglo_stt.py` | `DAGLO_API_KEY` (+ngrok) |
 | STT(1~2GB 대용량·영상 컨테이너) | `STT/elevenlabs_stt.py` | `ELEVENLABS_API_KEY` |
 | STT(화자 10명 이상·한영 혼용) | `STT/muse_stt.py` | `META_API_KEY` |
-| STT(비용 최우선·13개 언어) | `STT/mistral_stt.py` | `MISTRAL_API_KEY` |
+| STT(저비용·13개 언어) | `STT/mistral_stt.py` | `MISTRAL_API_KEY` |
 
 상세 옵션은 `references/tts.md`·`references/stt.md` 참조(필요할 때만 로드).
 

@@ -81,7 +81,7 @@ def main():
         """화자별로 텍스트를 포맷팅합니다."""
         output_lines = []
 
-        # segments가 있는 경우 (화자 구분 + 타임스탬프)
+        # segments가 있는 경우 (화자 구분)
         if hasattr(response, "segments") and response.segments:
             current_speaker = None
             current_texts = []

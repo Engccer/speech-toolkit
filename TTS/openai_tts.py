@@ -6,7 +6,7 @@ OpenAI Audio API(/v1/audio/speech)로 텍스트를 자연스러운 음성으로 
 기본 모델: gpt-4o-mini-tts (current snapshot: gpt-4o-mini-tts-2025-12-15)
   - 13개 빌트인 음성 (alloy/ash/ballad/coral/echo/fable/nova/onyx/sage/shimmer/verse/marin/cedar)
   - 자연어 `instructions` 파라미터로 톤·악센트·감정·속도·속삭임 스티어링
-  - 한도: 입력 4,096자 / 2,000 토큰(초과 시 자동 청크 분할)
+  - 한도: 입력 4,096자 / 2,000 토큰(--chunk-size 기본 3,000자 초과 시 자동 청크 분할)
   - 한국어 본문도 지원 (음성은 영어 최적화)
 
 사용법:
@@ -267,7 +267,7 @@ def main():
     python openai_tts.py input.txt --voice coral --format wav --speed 1.2
 
   긴 문서 (자동 청크 분할):
-    python openai_tts.py long_article.md            # 4096자 초과 시 자동 분할 + concat
+    python openai_tts.py long_article.md            # 3000자(--chunk-size) 초과 시 자동 분할 + concat
 
   목록 조회:
     python openai_tts.py --list-voices

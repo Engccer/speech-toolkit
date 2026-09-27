@@ -33,7 +33,7 @@ python TTS/gemini_tts.py input.txt --model gemini-3.1-flash-tts-preview --langua
 
 옵션: `--voice`(기본 Puck) / `--multi-speaker --voice1 --voice2` / `--style` / `--temperature 0.0-2.0`(생략하면 모델 기본값) / `--model <override>` / `--language-code`(레거시 전용) / `--list-voices` / `--list-tags`.
 
-**다중 화자**: 대본의 `[화자1]`/`[화자2]`(또는 `[Speaker1]`/`[Speaker2]`, `[1]`/`[2]`) 태그로 대사를 나눈다. 두 명까지이며 다른 태그는 본문으로 읽힌다. 모든 모델에 같다.
+**다중 화자**(`--multi-speaker`를 줄 때만, 자동 감지 없음): 대본의 `[화자1]`/`[화자2]`(또는 `[Speaker1]`/`[Speaker2]`, `[1]`/`[2]`) 태그로 대사를 나눈다. 두 명까지이며 다른 태그는 본문으로 읽힌다. 모든 모델에 같다.
 
 | 모델 | 출력 요금 (1M tok) | 비고 |
 |------|------|------|
@@ -69,7 +69,7 @@ python TTS/gemini_tts.py input.txt --model gemini-3.1-flash-tts-preview --langua
 
 ## ElevenLabs TTS
 
-단일/다중 화자 통합 스크립트. **자동 감지**: `화자: 대사` 콜론 줄이 **2개 이상**이고 서로 다른 화자가 **2명 이상**이면 dialogue 모드로 전환한다.
+단일/다중 화자 통합 스크립트. **자동 감지**: `화자: 대사` 콜론 줄이 **2개 이상**이고 서로 다른 화자가 **2명 이상**이면 dialogue 모드로 전환한다. dialogue 모드는 `text_to_dialogue` API로 대화를 한 요청에 보내므로, 화자별로 나눠 부르는 방식과 달리 모델이 대화 흐름을 함께 본다.
 
 ```bash
 # 단일 화자

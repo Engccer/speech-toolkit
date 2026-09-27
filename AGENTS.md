@@ -16,11 +16,11 @@
 
 - 인자 없이 실행 시 현재 폴더에서 지원 확장자를 자동 탐색한다.
 - 출력 파일명은 `<입력파일명>_<service>.<확장자>` 형식이다.
-- API 키는 반드시 환경변수로만 읽는다(`os.environ.get("...")`). 하드코딩 금지.
+- API 키는 반드시 환경변수로만 읽는다(`os.environ`). 하드코딩 금지.
 - 키가 없으면 한국어 오류 메시지를 출력한다. 종료 방식은 스크립트마다 다르다: elevenlabs_tts·elevenlabs_stt·daglo_stt·speechify_tts는 `sys.exit(1)`로 비정상 종료하고, 나머지 7개는 메시지 출력 후 조용히 반환한다(exit code 0).
 - `--help`(또는 `--list-voices`류 옵션)는 API 키 없이도 동작해야 한다.
 
-문서 갱신: 스크립트 옵션이 바뀌면 `references/tts.md`·`references/stt.md`의 상세 옵션을 함께 갱신한다. 스크립트를 추가·제거하면 `SKILL.md` 라우팅 표와 개수 표기(`SKILL.md` description, `README.md` 첫 줄, 이 파일 첫 줄)도 고친다.
+문서 갱신: 스크립트 옵션이 바뀌면 `references/tts.md`·`references/stt.md`의 상세 옵션과, 그 옵션을 인용한 `SKILL.md` 라우팅 라벨·사용 예를 함께 갱신한다. 스크립트를 추가·제거하면 `SKILL.md` 라우팅 표와 개수 표기(`SKILL.md` description, `README.md` 소개 문단과 영문 줄, 이 파일의 첫 문단·「기존 N개」·종료 방식 개수)도 고친다.
 
 시험: `python3 -m unittest discover -s tests`. 네트워크·API 키·SDK 없이 돈다. 스크립트 동작을 고치면 같은 커밋에 시험을 더한다.
 

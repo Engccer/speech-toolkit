@@ -43,7 +43,7 @@ API 제약 (파일 전사 엔드포인트):
 
 필요 패키지:
     pip install requests
-    ffmpeg/ffprobe가 PATH에 있어야 합니다(입력 변환·분할에 사용).
+    ffmpeg가 PATH에 있어야 합니다(입력 변환·분할에 사용). ffprobe가 없으면 길이를 모른 채 9분 단위로 분할합니다.
 """
 
 import argparse
