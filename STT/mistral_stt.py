@@ -1,11 +1,11 @@
 """
 Mistral STT (Speech-to-Text) 스크립트 - Voxtral Transcribe 2
-음성 파일을 텍스트로 전사하며, 화자 구분과 타임스탬프를 지원합니다.
+음성 파일을 텍스트로 전사하며, 화자 구분을 지원합니다.
 
 사용법:
     python mistral_stt.py [입력파일]
 
-    입력파일을 지정하지 않으면 현재 디렉토리에서 input.mp3, input.m4a, input.wav 순서로 찾습니다.
+    입력파일을 지정하지 않으면 현재 디렉토리에서 지원 확장자 파일을 찾아 처음 것 하나를 씁니다.
     컨텍스트 메뉴에서 실행 시 절대 경로를 지원합니다.
 
 출력:
@@ -39,7 +39,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Mistral STT (Voxtral Transcribe 2): 음성 파일을 텍스트로 전사하며 화자 구분과 타임스탬프를 지원합니다."
+        description="Mistral STT (Voxtral Transcribe 2): 음성 파일을 텍스트로 전사하며 화자 구분을 지원합니다."
     )
     parser.add_argument(
         "input_file",

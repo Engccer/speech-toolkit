@@ -1,6 +1,6 @@
 # ElevenLabs CLI (공식 CLI와의 역할 분담)
 
-Rust 단일 바이너리이며 ElevenLabs API 전체가 서브커맨드로 노출된다. 이 저장소의 `TTS/elevenlabs_tts.py`·`STT/elevenlabs_stt.py`를 대체하지 않고 **보완**한다.
+ElevenLabs 공식 CLI는 Rust 단일 바이너리이며 ElevenLabs API 전체를 서브커맨드로 노출한다. → [사례](cases.md#elevenlabs-cli-referenceselevenlabs-climd) 이 저장소의 `TTS/elevenlabs_tts.py`·`STT/elevenlabs_stt.py`를 대체하지 않고 **보완**한다.
 
 ## 설치
 
@@ -16,7 +16,7 @@ npm install -g @elevenlabs/cli                   # 크로스 플랫폼
 
 | 상황 | 선택 |
 |------|------|
-| 폴더 안 파일 일괄 변환, `<입력>_<service>.<ext>` 명명 규약, 다화자 자동 감지 | 이 저장소 스크립트 |
+| 파일 하나 변환, `<입력>_<service>.<ext>` 명명 규약, 다화자 대본 자동 감지(dialogue API) | 이 저장소 스크립트 |
 | 스크립트가 감싸지 않은 API 기능 | CLI |
 | 코딩 에이전트가 API 표면을 탐색하며 단발 호출 | CLI (`--schema`) |
 
@@ -27,7 +27,6 @@ npm install -g @elevenlabs/cli                   # 크로스 플랫폼
 | `forced-alignment` | 오디오와 대본을 문자·단어 단위 ms 타임스탬프로 정렬. 자막(SRT/VTT) 생성, 오디오북 챕터 마킹, 무음·누락 구간 검증 |
 | `pronunciation-dictionaries` | 특정 단어의 발음을 워크스페이스 차원에서 고정. 고유명사·약어·한자어 오독을 본문 편집 없이 교정하며, TTS 호출 쪽에서 `pronunciation_dictionary_locators`로 재사용 |
 | `dubbing` | 90개 이상 언어 더빙(Dubbing v2). 원 화자의 음색·톤·속도 보존. 프로젝트 단위로 전사·번역을 편집 가능한 JSON으로 두고 **바뀐 구간만 재생성** |
-| `text-to-dialogue` | 다화자 대본을 한 번에 생성. 화자별로 나눠 호출하는 방식과 달리 대화 흐름을 모델이 함께 본다 |
 | `audio-native` | 웹페이지에 AI 내레이션 오디오 플레이어를 임베드 |
 | `studio` | 장편 프로젝트(오디오북) 생성·변환 |
 | `usage` / `history` | 크레딧 소모량과 생성 이력 조회. 대량 작업 착수 전 한도 점검 |
@@ -47,7 +46,7 @@ elevenlabs text-to-speech convert --params '{"voice_id":"<id>"}' --json '{"text"
 elevenlabs user subscription get --query "{tier:tier,chars:character_count,limit:character_limit}"
 ```
 
-## 함정 (v1.1.0 실측)
+## 함정 (v1.1.0 기준)
 
 - 목록 조회는 `list`가 아니라 리소스마다 이름이 다르다. 예: `voices search`(구 `voices get_all`은 deprecated).
 - `models list`는 **TTS 모델만** 반환한다. Scribe 계열 STT 모델은 여기 나오지 않으므로 모델 ID는 문서로 확인한다.

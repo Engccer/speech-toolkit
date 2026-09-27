@@ -235,7 +235,7 @@ def main():
             # 2026-06-25: Deepgram API가 diarize + diarize_model 동시 사용을 거부
             # ("diarize_model cannot be used together with diarize or diarize_version").
             # 2026-05에 추가했던 diarize_model="latest"(Diarization v2)를 제거하고
-            # 표준 diarize=True만 유지(안정 동작). v2 정밀 재도입은 check-stack-updates에서 별도 검토.
+            # 표준 diarize=True만 유지(안정 동작). v2 정밀 재도입은 별도 검토.
             mip_opt_out=True,
         )
         if keyterms:

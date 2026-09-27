@@ -1,4 +1,4 @@
-"""Gemini STT: 음성/영상 파일을 텍스트로 전사한다 (화자 구분·타임스탬프 포함).
+"""Gemini STT: 음성/영상 파일을 텍스트로 전사한다 (화자 구분 포함).
 
 사용법: python gemini_stt.py [입력파일]
 - 인수 없으면 현재 폴더의 오디오 파일 자동 탐색
@@ -25,7 +25,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Gemini STT: 음성/영상 파일을 텍스트로 전사한다 (화자 구분·타임스탬프 포함)."
+        description="Gemini STT: 음성/영상 파일을 텍스트로 전사한다 (화자 구분 포함)."
     )
     parser.add_argument(
         "input_file",

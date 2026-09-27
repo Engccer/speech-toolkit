@@ -15,3 +15,7 @@ Meta Superintelligence Labs가 2026-09-01 공개한 실시간 오디오 인식 �
 ## ElevenLabs CLI (references/elevenlabs-cli.md)
 
 ElevenLabs가 2026-08-24 공식 CLI v1을 냈다.
+
+## 실시간 스트리밍은 이 저장소의 범위가 아니다 (references/realtime.md)
+
+두 주의점은 한국어 오디오로 실시간 API를 직접 호출한 실측에서 나왔다. 화자 과소 계수는 같은 오디오·같은 모델의 스트리밍과 배치 결과를 비교해 얻었다.

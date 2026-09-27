@@ -5,7 +5,7 @@ ElevenLabs STT (Speech-to-Text) 스크립트
 사용법:
     python elevenlabs_stt.py [입력파일]
 
-    입력파일을 지정하지 않으면 현재 디렉토리에서 input.mp3, input.m4a, input.wav 순서로 찾습니다.
+    입력파일을 지정하지 않으면 현재 디렉토리에서 지원 확장자 파일을 찾아 처음 것 하나를 씁니다.
     컨텍스트 메뉴에서 실행 시 절대 경로를 지원합니다.
 
 출력:

@@ -13,31 +13,11 @@ git clone https://github.com/Engccer/speech-toolkit
 pip install -r requirements.txt
 ```
 
-Python 3.12 기준. `STT/daglo_stt.py`만 ngrok 계정(pyngrok)이 추가로 필요하고, `STT/gemini_transcribe_stt.py`는 길이 상한 초과 파일을 자동 분할할 때 ffmpeg/ffprobe를 쓴다. `STT/muse_stt.py`는 API가 PCM WAV만 받으므로 ffmpeg/ffprobe가 항상 필요하다.
+Python 3.12 기준. `STT/daglo_stt.py`만 ngrok 계정(pyngrok)이 추가로 필요하고, `STT/gemini_transcribe_stt.py`는 길이 상한 초과 파일을 자동 분할할 때 ffmpeg/ffprobe를 쓴다. `STT/muse_stt.py`는 API가 PCM WAV만 받으므로 ffmpeg가 항상 필요하다.
 
-## 스크립트와 필요 API 키
+## 사용법
 
-| 작업 | 스크립트 | 필요 환경변수 |
-|---|---|---|
-| TTS(HD 음성, 다화자) | `TTS/gemini_tts.py` | `GEMINI_API_KEY` |
-| TTS(감정·억양 지시) | `TTS/openai_tts.py` | `OPENAI_API_KEY` |
-| TTS(다국어·음성 라이브러리) | `TTS/elevenlabs_tts.py` | `ELEVENLABS_API_KEY` |
-| TTS(Speechify) | `TTS/speechify_tts.py` | `SPEECHIFY_API_KEY` |
-| STT(빠름·화자 분리) | `STT/deepgram_stt.py` | `DEEPGRAM_API_KEY` |
-| STT(장시간·자연스러운 한국어) | `STT/gemini_stt.py` | `GEMINI_API_KEY` |
-| STT(정확도 최우선·전용 ASR) | `STT/gemini_transcribe_stt.py` | `GEMINI_API_KEY` |
-| STT(한국어 특화) | `STT/daglo_stt.py` | `DAGLO_API_KEY` (+ngrok) |
-| STT(ElevenLabs) | `STT/elevenlabs_stt.py` | `ELEVENLABS_API_KEY` |
-| STT(실시간급 지연·다화자 20명+) | `STT/muse_stt.py` | `META_API_KEY` |
-| STT(Voxtral) | `STT/mistral_stt.py` | `MISTRAL_API_KEY` |
-
-모든 키는 환경변수로만 읽는다. 스크립트에 키를 하드코딩하지 말 것.
-
-## 공통 규약
-
-- 인자 없이 실행하면 현재 폴더에서 입력 파일을 자동 탐색한다.
-- 출력: `<입력파일명>_<service>.<확장자>`
-- 각 스크립트의 전체 옵션: `python <script> --help` 또는 `references/` 문서.
+스크립트별 용도·필요한 환경변수·공통 규약은 [SKILL.md](SKILL.md), 스크립트별 옵션은 [references/](references/) 문서나 `python <script> --help`로 본다. API 키는 환경변수로만 읽는다.
 
 ## 관련 프로젝트
 

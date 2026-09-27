@@ -22,7 +22,7 @@ Google Gemini API의 네이티브 TTS 기능을 사용하여 텍스트를 음성
     --voice1 NAME           다중 화자 모드에서 화자1 음성 (기본: Kore)
     --voice2 NAME           다중 화자 모드에서 화자2 음성 (기본: Puck)
     --style TEXT            음성 스타일 지시 (예: "천천히, 따뜻하게")
-    --temperature FLOAT     음성 변동성 (0.0-2.0, 기본 1.0, 높을수록 풍부한 표현)
+    --temperature FLOAT     음성 변동성 (0.0-2.0, 기본: 모델 기본값, 높을수록 풍부한 표현)
     --language-code CODE    언어 코드 (레거시 모델 전용, 예: ko-KR, en-US, ja-JP)
     --model NAME            모델 override (기본: gemini-3.8-flash-tts)
     --list-voices           사용 가능한 음성 목록 출력
@@ -40,7 +40,7 @@ Google Gemini API의 네이티브 TTS 기능을 사용하여 텍스트를 음성
 
 주의:
   - 레거시 모델에서 --style 프리픽스는 긴 텍스트(~2000토큰+)에서 INVALID_ARGUMENT 유발 위험.
-  - 입력 8,192 토큰 제한 기준으로 경고한다. 긴 텍스트는 분할 필요.
+  - 입력 8,192 토큰 제한 기준(글자 수 ÷ 4 어림)으로 7,500을 넘으면 호출하지 않고 멈춘다. 긴 텍스트는 분할 필요.
 """
 
 import os
@@ -80,7 +80,7 @@ AVAILABLE_VOICES = [
     "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"
 ]
 
-# 자주 쓰는 언어 코드 (참고용, 전체 70+ 언어 지원)
+# 자주 쓰는 언어 코드 (참고용)
 COMMON_LANGUAGE_CODES = [
     ("ko-KR", "한국어"),
     ("en-US", "영어 (미국)"),

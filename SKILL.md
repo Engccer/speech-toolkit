@@ -10,35 +10,37 @@ metadata:
 
 텍스트↔음성 변환 CLI 스크립트 모음. 각 스크립트는 독립 실행형이며 공통 규약을 따른다:
 
-- 인자 없이 실행하면 현재 폴더에서 지원 확장자를 자동 탐색한다.
+- 입력 파일을 명시한다. 인자 없이 실행하면 현재 폴더에서 처음 찾은 지원 파일 **하나**만 처리한다(`keyterms.txt`나 이전 결과 `*_deepgram.txt`가 걸릴 수 있다).
 - 출력 파일명은 `<입력>_<service>.<ext>` 형식이다(예: `meeting_deepgram.txt`, `report_gemini_tts.wav`).
 - API 키는 환경변수로만 받는다(하드코딩 금지).
+- 성공은 출력 파일이 생겼는지로 판정한다. 여러 스크립트가 키 부재·API 오류에도 종료 코드 0으로 끝난다.
+- 의존성은 `pip install -r requirements.txt`. `muse_stt.py`는 ffmpeg가 늘, `gemini_transcribe_stt.py`는 상한을 넘는 파일을 나눌 때 ffmpeg/ffprobe가 필요하다.
 
 ## 라우팅
 
 | 작업 | 스크립트 | 필요 환경변수 |
 |---|---|---|
-| TTS(HD 음성, 다화자) | `TTS/gemini_tts.py` | `GEMINI_API_KEY` |
-| TTS(감정·억양 지시) | `TTS/openai_tts.py` | `OPENAI_API_KEY` |
-| TTS(다국어·음성 라이브러리) | `TTS/elevenlabs_tts.py` | `ELEVENLABS_API_KEY` |
-| TTS(Speechify) | `TTS/speechify_tts.py` | `SPEECHIFY_API_KEY` |
-| STT(빠름·화자 분리) | `STT/deepgram_stt.py` | `DEEPGRAM_API_KEY` |
+| TTS(표현력·다화자 2명·보컬 태그) | `TTS/gemini_tts.py` | `GEMINI_API_KEY` |
+| TTS(감정·억양 자연어 지시) | `TTS/openai_tts.py` | `OPENAI_API_KEY` |
+| TTS(한국어 음성 프리셋·다화자 대본) | `TTS/elevenlabs_tts.py` | `ELEVENLABS_API_KEY` |
+| TTS(SSML 세밀 제어: 속도·피치·감정) | `TTS/speechify_tts.py` | `SPEECHIFY_API_KEY` |
+| STT(빠름·길이 제한 없음, 기본 한국어) | `STT/deepgram_stt.py` | `DEEPGRAM_API_KEY` |
 | STT(장시간·자연스러운 한국어) | `STT/gemini_stt.py` | `GEMINI_API_KEY` |
-| STT(정확도 최우선·전용 ASR) | `STT/gemini_transcribe_stt.py` | `GEMINI_API_KEY` |
-| STT(한국어 특화) | `STT/daglo_stt.py` | `DAGLO_API_KEY` (+ngrok) |
-| STT(ElevenLabs) | `STT/elevenlabs_stt.py` | `ELEVENLABS_API_KEY` |
-| STT(실시간급 지연·다화자 20명+) | `STT/muse_stt.py` | `META_API_KEY` |
-| STT(Voxtral) | `STT/mistral_stt.py` | `MISTRAL_API_KEY` |
+| STT(단어 타임스탬프·도메인 용어·30분 이하) | `STT/gemini_transcribe_stt.py` | `GEMINI_API_KEY` |
+| STT(한국어 정확도 우선) | `STT/daglo_stt.py` | `DAGLO_API_KEY` (+ngrok) |
+| STT(1~2GB 대용량·영상 컨테이너) | `STT/elevenlabs_stt.py` | `ELEVENLABS_API_KEY` |
+| STT(화자 10명 이상·한영 혼용) | `STT/muse_stt.py` | `META_API_KEY` |
+| STT(비용 최우선·13개 언어) | `STT/mistral_stt.py` | `MISTRAL_API_KEY` |
 
 상세 옵션은 `references/tts.md`·`references/stt.md` 참조(필요할 때만 로드).
 
-STT 스크립트는 모두 **파일 전사 전용**이다. 마이크 받아쓰기·라이브 자막 같은 실시간
-스트리밍은 이 저장소의 범위가 아니다(입출력 계약이 다름). 프로바이더별 실시간 지원 실태와
-함정은 `references/realtime.md`의 「실시간 스트리밍은 이 저장소의 범위가 아니다」 절에 정리돼 있다.
+STT 스크립트는 모두 **파일 전사 전용**이다. 마이크 받아쓰기·라이브 자막 같은 실시간 스트리밍은 이 저장소의 범위가 아니며, 그런 요청일 때만 `references/realtime.md`를 읽는다.
 
-ElevenLabs는 공식 CLI도 있다. 강제 정렬(자막·타임스탬프), 발음 사전, 더빙, 다화자 대본처럼 **위 스크립트가 감싸지 않은 기능**이 필요하면 `references/elevenlabs-cli.md`를 참조한다.
+ElevenLabs는 공식 CLI도 있다. 강제 정렬(자막·타임스탬프), 발음 사전, 더빙처럼 **위 스크립트가 감싸지 않은 기능**이 필요하면 `references/elevenlabs-cli.md`를 참조한다.
 
 ## 사용 예
+
+스크립트 경로는 이 스킬 폴더 기준이다.
 
 ```bash
 python TTS/gemini_tts.py report.md --voice Kore
