@@ -76,7 +76,7 @@ python STT/daglo_stt.py recording.m4a             # ngrok 사전 설정 필요
 - **9시간 넘는 녹음** → 길이 제한 없는 Deepgram·Daglo, 또는 상한 9.5시간인 Gemini(`gemini_stt.py`). Transcribe·Muse도 자동 분할하지만 조각 사이 화자 번호가 이어지지 않는다
 - **파일 1~2GB** → ElevenLabs (2GB)
 - **영어 위주, 빠른 처리** → Deepgram `--lang en`(기본값이 `ko`라 꼭 붙인다)
-- **다국어(13개), 비용 최우선** → Mistral ($0.003/분)
+- **다국어(13개), 저비용** → Mistral ($0.003/분, Muse와 같은 단가)
 - **한 녹음에 화자가 여럿(10명 이상)** → Muse (인식 모델 안에서 화자 귀속, 20명 이상 표방)
 - **한·영이 한 문장 안에서 섞이는 녹음** → Muse(네이티브 코드 스위칭) 또는 Deepgram `--multi`
 - **20MB+ 파일을 Gemini로** → Files API 자동 전환되니 추가 설정 불필요

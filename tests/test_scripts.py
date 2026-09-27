@@ -51,7 +51,7 @@ class OpenAIOutputNameTest(unittest.TestCase):
         out = self.mod.get_output_filename(os.path.join("d", "report.txt"), "pcm")
         self.assertTrue(out.endswith("report_openai.pcm"), out)
 
-    def test_only_headerless_formats_are_safe_to_concat(self):
+    def test_pcm_is_safe_to_concat_but_wav_flac_are_not(self):
         self.assertIn("pcm", self.mod.SAFE_CONCAT_FORMATS)
         self.assertNotIn("wav", self.mod.SAFE_CONCAT_FORMATS)
         self.assertNotIn("flac", self.mod.SAFE_CONCAT_FORMATS)
