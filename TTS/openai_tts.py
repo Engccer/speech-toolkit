@@ -118,7 +118,7 @@ def find_input_file():
 
 
 def get_output_filename(input_file, fmt):
-    ext = "wav" if fmt == "pcm" else fmt
+    ext = fmt  # pcm은 헤더 없는 원시 PCM이라 .wav로 저장하면 재생되지 않는다
     dir_path = os.path.dirname(os.path.abspath(input_file))
     base = os.path.splitext(os.path.basename(input_file))[0]
     return os.path.join(dir_path, f"{base}_openai.{ext}")

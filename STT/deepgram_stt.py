@@ -51,6 +51,24 @@ import traceback
 
 
 def main():
+    # 명령줄 인수 파싱 (--help가 키·SDK 없이 동작하도록 가장 먼저)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Deepgram Nova-3 STT")
+    parser.add_argument("input_file", nargs="?", help="입력 오디오/비디오 파일 경로")
+    parser.add_argument("--lang", default="ko", help="전사 언어 코드 (기본 ko)")
+    parser.add_argument(
+        "--multi",
+        action="store_true",
+        help="다국어 모드(language=multi). 한·영 코드스위칭 녹음에 권장. --lang보다 우선.",
+    )
+    parser.add_argument(
+        "--timestamps",
+        action="store_true",
+        help="[파일명]_deepgram_ts.txt에 발화별 [HH:MM:SS]·화자 번호를 붙인 판을 함께 저장.",
+    )
+    args = parser.parse_args()
+
     try:
         from deepgram import DeepgramClient
         from deepgram.core.api_error import ApiError
@@ -159,24 +177,6 @@ def main():
             return transcript
 
         return ""
-
-    # 명령줄 인수 파싱
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Deepgram Nova-3 STT")
-    parser.add_argument("input_file", nargs="?", help="입력 오디오/비디오 파일 경로")
-    parser.add_argument("--lang", default="ko", help="전사 언어 코드 (기본 ko)")
-    parser.add_argument(
-        "--multi",
-        action="store_true",
-        help="다국어 모드(language=multi). 한·영 코드스위칭 녹음에 권장. --lang보다 우선.",
-    )
-    parser.add_argument(
-        "--timestamps",
-        action="store_true",
-        help="[파일명]_deepgram_ts.txt에 발화별 [HH:MM:SS]·화자 번호를 붙인 판을 함께 저장.",
-    )
-    args = parser.parse_args()
 
     language = "multi" if args.multi else args.lang
 

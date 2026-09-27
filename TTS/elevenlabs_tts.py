@@ -253,7 +253,7 @@ def build_voice_mapping(speakers, custom_map_arg=None):
     우선순위:
       1. --voice-map CLI 인자 (예: "화자1=Yuna,화자2=Seojin")
       2. DIALOGUE_VOICE_ALIASES 기본 별칭 (case-insensitive)
-      3. VOICE_PRESETS 순서로 자동 순환 할당
+      3. 아직 배정되지 않은 VOICE_PRESETS를 순서대로 할당(다 쓰면 순환)
     """
     mapping = {}
 
@@ -277,14 +277,19 @@ def build_voice_mapping(speakers, custom_map_arg=None):
             if preset:
                 mapping[speaker] = preset['id']
 
+    # 이미 배정된 음성은 건너뛴다. 프리셋을 모두 쓰면 처음부터 다시 순환
     auto_idx = 0
     for speaker in speakers:
         if speaker in mapping:
             continue
-        preset = VOICE_PRESETS[auto_idx % len(VOICE_PRESETS)]
+        free = [p for p in VOICE_PRESETS if p['id'] not in mapping.values()]
+        if free:
+            preset = free[0]
+        else:
+            preset = VOICE_PRESETS[auto_idx % len(VOICE_PRESETS)]
+            auto_idx += 1
         mapping[speaker] = preset['id']
         print(f"  {speaker} → {preset['name']} (자동 할당)")
-        auto_idx += 1
 
     return mapping
 
