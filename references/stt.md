@@ -81,10 +81,6 @@ python STT/gemini_transcribe_stt.py rec.m4a --vocab terms.txt     # 커스텀 �
 
 ## Meta Muse Voice Transcribe 옵션
 
-Meta Superintelligence Labs가 2026-09-01 공개한 실시간 오디오 인식 모델을 파일 전사 엔드포인트
-(`POST https://api.meta.ai/v1/asr/transcribe`)로 호출한다. 스트리밍 ASR·화자 귀속·발화 종료 판정이
-후처리 단계가 아니라 인식 모델 안에서 한 번에 일어난다.
-
 ```bash
 python STT/muse_stt.py rec.m4a                    # 화자 분리(DIARIZATION) 기본
 python STT/muse_stt.py rec.m4a --lang ko,en       # 언어 힌트 복수 지정(코드 스위칭)
@@ -112,9 +108,6 @@ python STT/muse_stt.py rec.m4a --timestamps       # _muse_ts.txt 추가 저장
   마이크 받아쓰기·라이브 자막이 필요하면 해당 WebSocket 엔드포인트를 직접 쓴다.
 - **요금·한도**: $0.18/오디오 시간(초 단위 절사 과금). 테넌트당 동시 스트림 8개, 시간당 1,000개.
   실패·429 요청은 과금되지 않는다.
-- **실측(2026-09-03)**: 한국어 11초 음원 1건으로 실호출 확인. 전사 정확도 100%(고유명사 포함),
-  DIARIZATION 응답의 `speaker`는 알파벳 대문자(`A`)로 오고, 턴 시작 시각은 `turns[].startMs`에 담긴다.
-  Model API 계정을 만들면 `Playground`라는 기본 키가 하나 자동 생성돼 있다.
 
 ## Daglo ngrok 설정
 
@@ -127,29 +120,4 @@ python STT/daglo_stt.py recording.m4a   # 자동으로 ngrok 터널 시작
 
 ## 실시간 스트리밍은 이 저장소의 범위가 아니다
 
-여기 있는 STT 스크립트는 모두 **파일 전사(배치)** 전용이다. 마이크 받아쓰기·라이브 자막처럼
-오디오를 흘려보내며 결과를 받는 실시간 스트리밍은 다루지 않으며, 앞으로도 넣지 않는다.
-입출력 계약이 다르기 때문이다: 입력 파일이 없고, 끝나는 시점이 없고, 중간 가설(partial)과
-확정(final)이 따로 흐르며, 마이크 캡처를 위해 PortAudio 같은 네이티브 의존성이 필요하다.
-이 저장소의 공통 규약(폴더 자동 탐색, `<입력>_<service>.<확장자>` 출력)이 하나도 성립하지 않는다.
-
-실시간이 필요하면 각 프로바이더의 스트리밍 엔드포인트를 직접 쓴다. 2026-09 기준 실태:
-
-| 프로바이더 | 실시간 엔드포인트 | 실시간 화자 분리 | 세션 상한 |
-|---|---|---|---|
-| Meta Muse | `wss://api.meta.ai/v1/asr/realtime` | DIARIZATION 모드 | 60분 |
-| Deepgram | `wss://api.deepgram.com/v1/listen` | `diarize=true` | 사실상 없음 |
-| Gemini 3.5 Transcribe Live | Live API (`gemini-3.5-transcribe-live`) | **미지원** | **10분** |
-| ElevenLabs Scribe v2 Realtime | WebSocket (`scribe_v2_realtime`) | **미지원** | 문서 미기재 |
-
-한국어 실측에서 얻은 주의점 두 가지:
-
-- **위 상용 API들의 실시간 화자 분리는 화자 수를 계통적으로 과소 계수한다.** 같은 오디오·같은
-  모델에서 스트리밍이 배치보다 적은 화자를 찾는다(한국어 실측). 배치 전제로 만든 화자 분리를
-  스트리밍에 얹은 구현으로 보이므로, 이들의 화자 라벨을 신뢰하는 설계를 세우지 말 것.
-  다만 **온라인 화자 분리 자체가 불가능한 것은 아니다.** 증분 클러스터링·화자 캐시로 처음부터
-  온라인으로 설계된 알고리즘(diart, NVIDIA Streaming Sortformer 등)은 별개이며, 화자 분리가
-  꼭 필요하면 배치를 쓰거나 그런 전용 엔진을 따로 붙인다.
-- **Muse 실시간은 인증을 핸드셰이크 첫 JSON 프레임으로 받는다.** `Authorization` 헤더는
-  무시된다. 오디오는 컨테이너 없는 raw PCM 바이너리 프레임을 실시간 속도로 보내며
-  5초 이상 앞질러 보내면 안 된다. `speaker` 이벤트는 그 **앞의** 오디오에 라벨을 붙인다.
+마이크 받아쓰기·라이브 자막 요청일 때만 `references/realtime.md`를 읽는다.

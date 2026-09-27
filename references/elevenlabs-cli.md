@@ -1,6 +1,6 @@
 # ElevenLabs CLI (공식 CLI와의 역할 분담)
 
-ElevenLabs가 2026-08-24 공식 CLI v1을 냈다. Rust 단일 바이너리이며 ElevenLabs API 전체가 서브커맨드로 노출된다. 이 저장소의 `TTS/elevenlabs_tts.py`·`STT/elevenlabs_stt.py`를 대체하지 않고 **보완**한다.
+Rust 단일 바이너리이며 ElevenLabs API 전체가 서브커맨드로 노출된다. 이 저장소의 `TTS/elevenlabs_tts.py`·`STT/elevenlabs_stt.py`를 대체하지 않고 **보완**한다.
 
 ## 설치
 
