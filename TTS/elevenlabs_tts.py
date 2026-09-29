@@ -1,7 +1,7 @@
 """
 ElevenLabs TTS 통합 스크립트 (단일 화자 + 다중 화자 대화)
 
-ElevenLabs v3 모델로 텍스트/대화를 자연스러운 음성으로 변환합니다.
+ElevenLabs 모델(단일 화자 기본 eleven_v4, 대화 API는 서버 기본 모델)로 텍스트/대화를 자연스러운 음성으로 변환합니다.
 입력 형식을 감지해 자동으로 단일/다중 모드를 전환하며, 플래그로 강제 가능합니다.
 
 사용법:
@@ -43,7 +43,7 @@ import re
 # 설정
 # ============================================================
 
-DEFAULT_MODEL_ID = "eleven_v3"
+DEFAULT_MODEL_ID = "eleven_v4"
 
 # 음성 프리셋 (단일 모드 선택지 + 다중 모드 자동 할당 로테이션 순서)
 VOICE_PRESETS = [
@@ -326,7 +326,7 @@ def multi_speaker_tts(client, entries, voice_mapping, model_id):
     ]
     total_chars = sum(len(e["text"]) for e in entries)
     print(f"\n음성 변환 중... (모드: 다중, 엔트리: {len(entries)}개, "
-          f"모델: {model_id}, 문자: {total_chars})")
+          f"모델: 서버 기본, 문자: {total_chars})")
 
     # text_to_dialogue는 voice_settings 미지원 (ElevenLabs API 한계)
     audio_gen = client.text_to_dialogue.convert(inputs=inputs)
@@ -339,7 +339,7 @@ def multi_speaker_tts(client, entries, voice_mapping, model_id):
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        description='ElevenLabs TTS - 단일/다중 화자 통합 변환 (eleven_v3)',
+        description='ElevenLabs TTS - 단일/다중 화자 통합 변환 (단일 기본 eleven_v4)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 예시:

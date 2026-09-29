@@ -11,7 +11,7 @@
 | 도구 | 출력 | 환경변수 | 비고 |
 |------|------|---------|------|
 | `TTS/gemini_tts.py` | WAV (`_gemini_tts.wav`) | `GEMINI_API_KEY` | 3.8 기본(Lite 선택), 단일/다중 화자, 30개 프리셋 + 확장 음성, 인라인 보컬 태그 |
-| `TTS/elevenlabs_tts.py` | MP3 (`_elevenlabs.mp3`) | `ELEVENLABS_API_KEY` | v3, 단일+다중 통합 (자동 감지) |
+| `TTS/elevenlabs_tts.py` | MP3 (`_elevenlabs.mp3`) | `ELEVENLABS_API_KEY` | 단일 화자 기본 v4(다중 화자는 서버 기본 모델), 단일+다중 통합 (자동 감지) |
 | `TTS/openai_tts.py` | MP3 (`_openai.mp3`) | `OPENAI_API_KEY` | gpt-4o-mini-tts, 13개 음성, `--instructions` 자연어 스티어링, 자동 청크 분할 |
 | `TTS/speechify_tts.py` | MP3 (`_speechify.mp3`) | `SPEECHIFY_API_KEY` | simba-3.0(기본, 한국어 포함), SSML 변환(속도·피치·볼륨·감정·정지) |
 
@@ -89,7 +89,7 @@ python TTS/elevenlabs_tts.py --list-voices
 python TTS/elevenlabs_tts.py --list-tags
 ```
 
-옵션: `--voice <name>` / `--speed 0.7-1.2`(기본 1.2) / `--stability 0.0-1.0` / `--model`(기본 `eleven_v3`) / `--voice-map "화자=Voice,..."` / `--multi-speaker` / `--single` / `--list-voices` / `--list-tags`.
+옵션: `--voice <name>` / `--speed 0.7-1.2`(기본 1.2) / `--stability 0.0-1.0` / `--model`(기본 `eleven_v4`, 단일 모드만) / `--voice-map "화자=Voice,..."` / `--multi-speaker` / `--single` / `--list-voices` / `--list-tags`.
 
 감정 태그(`[excited]`, `[thoughtfully]` 등)는 두 모드 모두 지원.
 

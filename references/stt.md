@@ -16,7 +16,7 @@
 | 도구 | 모델 | 화자 분리 | 최대 | 환경변수 | 특이사항 |
 |------|------|----------|------|----------|---------|
 | `STT/elevenlabs_stt.py` | Scribe v2 | O | 2 GB | `ELEVENLABS_API_KEY` | 가장 큰 파일. 비디오 컨테이너 17종 지원 |
-| `STT/gemini_stt.py` | Gemini 3.7 Flash | O(프롬프트) | 9.5 시간 | `GEMINI_API_KEY` | 가장 긴 음성. 20MB+ Files API 자동 사용 |
+| `STT/gemini_stt.py` | Gemini 3.8 Flash | O(프롬프트) | 9.5 시간 | `GEMINI_API_KEY` | 가장 긴 음성. 20MB+ Files API 자동 사용 |
 | `STT/gemini_transcribe_stt.py` | Gemini 3.5 Transcribe | O(최대 8명) | 30분/요청 (화자 분리·단어 타임스탬프를 모두 끄면 60분) | `GEMINI_API_KEY` | 전용 ASR. WER 2.6%. 키텀 파일(custom_vocabulary)·단어 타임스탬프 정식 파라미터. 상한 초과분은 ffmpeg 자동 분할. **public preview** |
 | `STT/deepgram_stt.py` | Nova-3 | O | 제한없음 | `DEEPGRAM_API_KEY` | 한국어 기본 설정. 스마트 포맷팅, 단락 구분 |
 | `STT/mistral_stt.py` | Voxtral Mini Transcribe v2 | O | 1 GB / 3시간 | `MISTRAL_API_KEY` | 13개 언어. **$0.003/분** |
