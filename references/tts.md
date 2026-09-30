@@ -14,6 +14,7 @@
 | `TTS/elevenlabs_tts.py` | MP3 (`_elevenlabs.mp3`) | `ELEVENLABS_API_KEY` | 단일 화자 기본 v4(다중 화자는 서버 기본 모델), 단일+다중 통합 (자동 감지) |
 | `TTS/openai_tts.py` | MP3 (`_openai.mp3`) | `OPENAI_API_KEY` | gpt-4o-mini-tts, 13개 음성, `--instructions` 자연어 스티어링, 자동 청크 분할 |
 | `TTS/speechify_tts.py` | MP3 (`_speechify.mp3`) | `SPEECHIFY_API_KEY` | simba-3.0(기본, 한국어 포함), SSML 변환(속도·피치·볼륨·감정·정지) |
+| `TTS/long_tts.py` | ElevenLabs MP3 / Gemini WAV | 위 둘 중 하나 | 긴 단일 화자 대본을 나눠 합성·병합하고 길이로 절단 검증. [긴 텍스트 분할](#긴-텍스트-분할) |
 
 입력은 모두 `.txt`·`.md` 파일이다. 텍스트를 인자로 직접 받는 것은 `openai_tts.py`뿐이다.
 
@@ -93,6 +94,8 @@ python TTS/elevenlabs_tts.py --list-tags
 
 감정 태그(`[excited]`, `[thoughtfully]` 등)는 두 모드 모두 지원.
 
+**eleven_v4 실측**(한국어, Yuna): 요청당 상한 10,000자. 초당 약 7.1자로 v3(초당 4.35자 @1.0)보다 빠르고, `--speed`를 1.2로 올려도 빨라지지 않았다. 한 요청이 약 293초를 넘으면 문장 중간 100~150자를 에러 없이 건너뛰었다(약 293초·620초 지점). 긴 대본은 `long_tts.py`로 나눈다.
+
 **API 제약**: `text_to_dialogue` API는 `voice_settings`(속도·안정성)를 미지원 → `--speed`, `--stability`는 단일 모드에서만 적용된다. `--model`도 단일 모드에서만 API에 전달된다.
 
 한국어 프리셋 7종(Yuna·Kelee 여성, DoHyeon·Seojin·Jason·Hyunsu·Min 남성) + 영어 2종(James·Kiki). 다중 화자에서 `--voice-map`이 없으면 별칭(유나·도현 등 프리셋 이름, `화자1`=Yuna·`화자2`=DoHyeon)으로 먼저 배정하고, 나머지 화자는 아직 배정되지 않은 프리셋을 순서대로 받는다. 한국어 7종 다음은 영어 음성이므로 화자가 8명 이상이거나 특정 음성을 원하면 `--voice-map`으로 지정한다.
@@ -152,6 +155,21 @@ python TTS/openai_tts.py input.txt --instructions "Whisper softly, intimate and 
 
 ## 긴 텍스트 분할
 
-스크립트가 알아서 나누는 것은 OpenAI TTS뿐이다. Gemini TTS와 ElevenLabs 다중 화자 모드는 입력을 한 번에 보내므로, 한도를 넘는 입력은 에이전트가 문단·화자 전환 경계에서 나눠 조각마다 부르고 ffmpeg로 잇는다(`ffmpeg -f concat -safe 0 -i list.txt -c copy <출력>`).
+TTS API는 요청당 문자 상한 안에서도 긴 입력을 에러 없이 망가뜨린다(HTTP 200). eleven_v3는 약 550초에서 뒷부분이 잘리고, eleven_v4는 약 293초를 넘으면 중간을 건너뛰며, Gemini는 약 655초(출력 16,384토큰)에서 잘린다. 한국어는 1자가 1음절이라 영어 기준의 "5,000자 ≈ 5분" 안내보다 훨씬 빨리 이 길이에 닿는다.
+
+**단일 화자 대본은 `long_tts.py`에 맡긴다.** 모델별 발화 속도로 예상 길이를 계산해 문단·문장 경계에서 나누고(v4 240초, v3·Gemini 300초), 조각마다 합성해 무손실로 잇고, 실제 길이가 예상의 85% 미만이면서 10초 넘게 부족하면 실패로 끝낸다.
+
+```bash
+python TTS/long_tts.py script.txt                              # ElevenLabs eleven_v4, Yuna
+python TTS/long_tts.py script.txt --model eleven_v3 --speed 1.2
+python TTS/long_tts.py script.txt --provider gemini            # gemini-3.8-flash-tts, Puck
+python TTS/long_tts.py script.txt --compact-copy               # + 1.5배속 사본(_compact.mp3, 목표 1.8MB)
+```
+
+옵션: `--provider elevenlabs|gemini` / `--model` / `--voice` / `--speed`(ElevenLabs, 기본 1.2) / `--chars-per-sec`(speed 1.0 기준 자/초) / `--chunk-seconds` / `--compact-copy` / `--tempo 1.5` / `--target-mb 1.8`. ffmpeg·ffprobe가 필요하다.
+
+발화 속도 상수는 **한국어 대본으로 잰 값**이다. 다른 언어나 스크립트 표에 없는 모델은 `--chars-per-sec`를 준다(표에 없는 모델은 이 값이 없으면 멈춘다). 값이 실제보다 크면 멀쩡한 오디오를 절단으로 오판하고, 작으면 조각이 길어져 상한에 닿는다. 길이 검증은 끝부분 절단을 잡지만 몇 초짜리 중간 누락은 잡지 못하므로, 완결성이 중요하면 결과를 STT로 전사해 대본과 대조한다.
+
+Gemini 다중 화자와 ElevenLabs 다중 화자 모드는 입력을 한 번에 보내므로, 한도를 넘는 입력은 에이전트가 화자 전환 경계에서 나눠 조각마다 부르고 ffmpeg로 잇는다. MP3는 `ffmpeg -f concat -safe 0 -i list.txt -c copy <출력>`, WAV는 조각마다 헤더가 있어 `-c copy` 대신 `-c:a pcm_s16le`로 잇는다.
 
 조각마다 같은 `--voice`·`--style`·`--temperature`를 준다. ElevenLabs 다중 화자는 자동 배정이 조각마다 등장 순서로 다시 정해져 음성이 뒤바뀔 수 있으므로 모든 조각에 같은 `--voice-map`을 준다.

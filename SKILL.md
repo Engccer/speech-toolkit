@@ -24,6 +24,7 @@ metadata:
 | TTS(감정·억양 자연어 지시) | `TTS/openai_tts.py` | `OPENAI_API_KEY` |
 | TTS(한국어 음성 프리셋·다화자 대본) | `TTS/elevenlabs_tts.py` | `ELEVENLABS_API_KEY` |
 | TTS(SSML 세밀 제어: 속도·피치·감정) | `TTS/speechify_tts.py` | `SPEECHIFY_API_KEY` |
+| TTS(긴 단일 화자 대본: 분할·병합·길이 검증) | `TTS/long_tts.py` | `ELEVENLABS_API_KEY` 또는 `GEMINI_API_KEY` |
 | STT(빠름·길이 제한 없음, 기본 한국어) | `STT/deepgram_stt.py` | `DEEPGRAM_API_KEY` |
 | STT(장시간·자연스러운 한국어) | `STT/gemini_stt.py` | `GEMINI_API_KEY` |
 | STT(단어 타임스탬프·도메인 용어·30분 이하) | `STT/gemini_transcribe_stt.py` | `GEMINI_API_KEY` |

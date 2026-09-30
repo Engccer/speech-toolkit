@@ -41,6 +41,49 @@ class HelpWithoutKeyTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("usage:", result.stdout)
 
+    def test_long_tts_help_without_key_or_sdk(self):
+        result = self.run_help("TTS/long_tts.py")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("usage:", result.stdout)
+
+
+class LongTtsTest(unittest.TestCase):
+    def setUp(self):
+        self.mod = load("TTS/long_tts.py")
+
+    def test_default_models_have_measured_rates(self):
+        for provider, model in self.mod.DEFAULT_MODEL.items():
+            self.assertIn((provider, model), self.mod.MODELS)
+
+    def test_v3_rate_scales_with_speed(self):
+        cps, chunk = self.mod.resolve_rate("elevenlabs", "eleven_v3", 1.2)
+        self.assertAlmostEqual(cps, 4.35 * 1.2)
+        self.assertEqual(chunk, 300)
+
+    def test_v4_rate_ignores_speed_and_stays_under_seam(self):
+        cps, chunk = self.mod.resolve_rate("elevenlabs", "eleven_v4", 1.2)
+        self.assertAlmostEqual(cps, 7.1)
+        self.assertLess(chunk, 290)
+
+    def test_unknown_model_requires_rate(self):
+        with self.assertRaises(SystemExit):
+            self.mod.resolve_rate("elevenlabs", "eleven_multilingual_v2", 1.0)
+        cps, chunk = self.mod.resolve_rate("elevenlabs", "eleven_multilingual_v2", 1.1, 5.0)
+        self.assertAlmostEqual(cps, 5.5)
+        self.assertEqual(chunk, self.mod.FALLBACK_CHUNK_SECONDS)
+
+    def test_chunks_respect_limit_and_keep_all_text(self):
+        text = "첫 문단입니다.\n" + "긴 문장입니다. " * 40 + "\n마지막 문단입니다."
+        chunks = self.mod.split_into_chunks(text, 100)
+        self.assertTrue(all(len(c) <= 100 for c in chunks))
+        squash = lambda s: "".join(s.split())
+        self.assertEqual(squash("".join(chunks)), squash(text))
+
+    def test_short_tail_is_not_truncation(self):
+        self.assertFalse(self.mod.is_truncated(5.0, 3.0))
+        self.assertTrue(self.mod.is_truncated(300.0, 200.0))
+        self.assertFalse(self.mod.is_truncated(300.0, 270.0))
+
 
 class OpenAIOutputNameTest(unittest.TestCase):
     def setUp(self):

@@ -13,7 +13,7 @@ git clone https://github.com/Engccer/speech-toolkit
 pip install -r requirements.txt
 ```
 
-Python 3.12 기준. `STT/daglo_stt.py`만 ngrok 계정(pyngrok)이 추가로 필요하고, `STT/gemini_transcribe_stt.py`는 길이 상한 초과 파일을 자동 분할할 때 ffmpeg/ffprobe를 쓴다. `STT/muse_stt.py`는 API가 PCM WAV만 받으므로 ffmpeg가 항상 필요하다.
+Python 3.12 기준. `STT/daglo_stt.py`만 ngrok 계정(pyngrok)이 추가로 필요하고, `STT/gemini_transcribe_stt.py`는 길이 상한 초과 파일을 자동 분할할 때 ffmpeg/ffprobe를 쓴다. `STT/muse_stt.py`는 API가 PCM WAV만 받으므로 ffmpeg가 항상 필요하다. 긴 대본을 나눠 합성하는 `TTS/long_tts.py`도 ffmpeg/ffprobe를 쓴다.
 
 ## 사용법
 
