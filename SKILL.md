@@ -3,7 +3,7 @@ name: speech-toolkit
 description: "텍스트→음성(TTS)과 음성→텍스트(STT) 변환 CLI 스크립트 모음. TTS는 Gemini/ElevenLabs/OpenAI/Speechify 4종, STT는 Daglo/Deepgram/ElevenLabs/Gemini/Gemini 3.5 Transcribe/Meta Muse/Mistral 7종. 다음 요청에 사용: 텍스트를 음성으로 변환, 나레이션·오디오북 음원 생성, 음성·영상 파일 전사, 회의 녹음 텍스트 변환, TTS, STT, transcription. Use for text-to-speech (TTS) and speech-to-text (STT): generate narration audio from text or transcribe audio/video files to text with multiple AI providers."
 license: MIT
 metadata:
-  version: "1.3.0"
+  version: "1.3.1"
 ---
 
 # speech-toolkit
@@ -27,7 +27,7 @@ metadata:
 | TTS(긴 단일 화자 대본: 분할·병합·길이 검증) | `TTS/long_tts.py` | `ELEVENLABS_API_KEY` 또는 `GEMINI_API_KEY` |
 | STT(빠름·길이 제한 없음, 기본 한국어) | `STT/deepgram_stt.py` | `DEEPGRAM_API_KEY` |
 | STT(장시간·자연스러운 한국어) | `STT/gemini_stt.py` | `GEMINI_API_KEY` |
-| STT(단어 타임스탬프·도메인 용어·30분 이하) | `STT/gemini_transcribe_stt.py` | `GEMINI_API_KEY` |
+| STT(단어 타임스탬프·도메인 용어, 긴 파일은 자동 분할) | `STT/gemini_transcribe_stt.py` | `GEMINI_API_KEY` |
 | STT(한국어 정확도 우선) | `STT/daglo_stt.py` | `DAGLO_API_KEY` (+ngrok) |
 | STT(1~2GB 대용량·영상 컨테이너) | `STT/elevenlabs_stt.py` | `ELEVENLABS_API_KEY` |
 | STT(화자 10명 이상·한영 혼용) | `STT/muse_stt.py` | `META_API_KEY` |
