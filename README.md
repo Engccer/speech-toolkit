@@ -1,6 +1,6 @@
 # speech-toolkit
 
-AI API 기반 텍스트↔음성 변환 CLI 스크립트 모음(TTS 4종 + STT 7종). 코딩 에이전트(Claude Code, Codex 등)의 스킬로도, 단독 CLI로도 쓸 수 있다.
+AI API 기반 텍스트↔음성 변환 CLI 스크립트 모음(TTS 4종 + STT 7종). 코딩 에이전트(Claude Code, Codex 등)의 스킬로도, 단독 CLI로도 쓸 수 있다. <!-- sanitize: allow 설치 대상 안내 -->
 
 CLI scripts for text-to-speech (4 providers) and speech-to-text (7 providers). Works standalone or as an agent skill.
 
