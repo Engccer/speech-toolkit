@@ -22,7 +22,6 @@ Google Gemini API의 네이티브 TTS 기능을 사용하여 텍스트를 음성
     --voice1 NAME           다중 화자 모드에서 화자1 음성 (기본: Kore)
     --voice2 NAME           다중 화자 모드에서 화자2 음성 (기본: Puck)
     --style TEXT            음성 스타일 지시 (예: "천천히, 따뜻하게")
-    --temperature FLOAT     음성 변동성 (0.0-2.0, 기본: 모델 기본값, 높을수록 풍부한 표현)
     --language-code CODE    언어 코드 (레거시 모델 전용, 예: ko-KR, en-US, ja-JP)
     --model NAME            모델 override (기본: gemini-3.8-flash-tts)
     --list-voices           사용 가능한 음성 목록 출력
@@ -297,31 +296,26 @@ def _build_speech_config(types, voice_name=None, language_code=None, multi_speak
     return types.SpeechConfig(**kwargs)
 
 
-def _build_generate_config(types, speech_config, temperature=None):
-    """GenerateContentConfig 생성 공통 헬퍼. temperature가 있으면 포함."""
-    kwargs = {
-        'response_modalities': ["AUDIO"],
-        'speech_config': speech_config,
-    }
-    if temperature is not None:
-        kwargs['temperature'] = temperature
-    return types.GenerateContentConfig(**kwargs)
+def _build_generate_config(types, speech_config):
+    """GenerateContentConfig 생성 공통 헬퍼."""
+    return types.GenerateContentConfig(
+        response_modalities=["AUDIO"],
+        speech_config=speech_config,
+    )
 
 
 def legacy_single_speaker_tts(client, types, text, voice_name, model,
-                       style=None, temperature=None, language_code=None):
+                       style=None, language_code=None):
     """단일 화자 TTS 수행"""
     content = f"{style}: {text}" if style else text
 
     info_parts = [f"음성: {voice_name}", f"모델: {model}"]
-    if temperature is not None:
-        info_parts.append(f"temperature: {temperature}")
     if language_code:
         info_parts.append(f"언어: {language_code}")
     print(f"음성 변환 중... ({', '.join(info_parts)})")
 
     speech_config = _build_speech_config(types, voice_name=voice_name, language_code=language_code)
-    config = _build_generate_config(types, speech_config, temperature=temperature)
+    config = _build_generate_config(types, speech_config)
 
     response = client.models.generate_content(
         model=model,
@@ -337,7 +331,7 @@ def legacy_single_speaker_tts(client, types, text, voice_name, model,
 
 
 def legacy_multi_speaker_tts(client, types, text, voice1, voice2, model,
-                      style=None, temperature=None, language_code=None):
+                      style=None, language_code=None):
     """다중 화자 TTS 수행"""
     segments = parse_multi_speaker_text(text)
 
@@ -345,13 +339,11 @@ def legacy_multi_speaker_tts(client, types, text, voice1, voice2, model,
         print("경고: 화자 태그를 찾을 수 없습니다. 단일 화자로 처리합니다.")
         return legacy_single_speaker_tts(
             client, types, text, voice1, model,
-            style=style, temperature=temperature, language_code=language_code,
+            style=style, language_code=language_code,
         )
 
     print(f"다중 화자 모드: {len(segments)}개 세그먼트 감지")
     print(f"  화자1: {voice1} / 화자2: {voice2} / 모델: {model}")
-    if temperature is not None:
-        print(f"  temperature: {temperature}")
     if language_code:
         print(f"  언어: {language_code}")
 
@@ -378,7 +370,7 @@ def legacy_multi_speaker_tts(client, types, text, voice1, voice2, model,
     speech_config = _build_speech_config(
         types, language_code=language_code, multi_speaker=multi_speaker_config
     )
-    config = _build_generate_config(types, speech_config, temperature=temperature)
+    config = _build_generate_config(types, speech_config)
 
     response = client.models.generate_content(
         model=model,
@@ -393,7 +385,7 @@ def legacy_multi_speaker_tts(client, types, text, voice1, voice2, model,
     return response.candidates[0].content.parts[0].inline_data.data
 
 
-def interactions_tts(api_key, turns, speakers, model, style=None, temperature=None):
+def interactions_tts(api_key, turns, speakers, model, style=None):
     """
     Interactions API(3.8 이후)로 TTS 수행.
     turns: [(speaker 이름 또는 None, 대사)], speakers: [(speaker 이름, 음성)].
@@ -420,8 +412,6 @@ def interactions_tts(api_key, turns, speakers, model, style=None, temperature=No
         }
 
     generation_config = {"speech_config": speech_config}
-    if temperature is not None:
-        generation_config["temperature"] = temperature
 
     body = {
         "model": model,
@@ -455,32 +445,28 @@ def interactions_tts(api_key, turns, speakers, model, style=None, temperature=No
     raise RuntimeError(f"응답에 오디오가 없습니다: {json.dumps(result, ensure_ascii=False)[:500]}")
 
 
-def single_speaker_tts(api_key, text, voice, model, style=None, temperature=None):
+def single_speaker_tts(api_key, text, voice, model, style=None):
     """단일 화자 TTS (3.8 이후)"""
     info_parts = [f"음성: {voice}", f"모델: {model}"]
-    if temperature is not None:
-        info_parts.append(f"temperature: {temperature}")
     print(f"음성 변환 중... ({', '.join(info_parts)})")
     return interactions_tts(api_key, [(None, text)], [(None, voice)], model,
-                            style=style, temperature=temperature)
+                            style=style)
 
 
-def multi_speaker_tts(api_key, text, voice1, voice2, model, style=None, temperature=None):
+def multi_speaker_tts(api_key, text, voice1, voice2, model, style=None):
     """다중 화자 TTS (3.8 이후). 대사마다 speech_metadata.speaker를 붙인다."""
     segments = parse_multi_speaker_text(text)
     if not segments:
         print("경고: 화자 태그를 찾을 수 없습니다. 단일 화자로 처리합니다.")
-        return single_speaker_tts(api_key, text, voice1, model, style=style, temperature=temperature)
+        return single_speaker_tts(api_key, text, voice1, model, style=style)
 
     print(f"다중 화자 모드: {len(segments)}개 세그먼트 감지")
     print(f"  화자1: {voice1} / 화자2: {voice2} / 모델: {model}")
-    if temperature is not None:
-        print(f"  temperature: {temperature}")
     print("음성 변환 중...")
 
     turns = [(f"Speaker{seg['speaker']}", seg['text']) for seg in segments]
     speakers = [("Speaker1", voice1), ("Speaker2", voice2)]
-    return interactions_tts(api_key, turns, speakers, model, style=style, temperature=temperature)
+    return interactions_tts(api_key, turns, speakers, model, style=style)
 
 
 def main():
@@ -497,8 +483,8 @@ def main():
     # input.txt 내용: "이건 비밀인데 <whispers> 사실 나도 몰랐어. <laugh>"
     python gemini_tts.py input.txt --voice Aoede
 
-  스타일 지시 + 변동성 제어:
-    python gemini_tts.py input.txt --style "천천히, 따뜻한 목소리로" --temperature 1.5
+  스타일 지시:
+    python gemini_tts.py input.txt --style "천천히, 따뜻한 목소리로"
 
   다중 화자 (본문에 [화자1] / [화자2] 태그):
     python gemini_tts.py dialogue.txt --multi-speaker --voice1 Kore --voice2 Puck
@@ -520,8 +506,6 @@ def main():
     parser.add_argument('--voice1', default='Kore', help='다중 화자 화자1 음성')
     parser.add_argument('--voice2', default='Puck', help='다중 화자 화자2 음성')
     parser.add_argument('--style', help='스타일 지시 (예: "천천히, 따뜻하게")')
-    parser.add_argument('--temperature', type=float, default=None,
-                        help='음성 변동성 (0.0-2.0, 기본: 모델 기본값)')
     parser.add_argument('--language-code', dest='language_code', default=None,
                         help='언어 코드, 레거시 모델 전용 (예: ko-KR, en-US, ja-JP)')
     parser.add_argument('--model', default=DEFAULT_MODEL,
@@ -553,11 +537,6 @@ def main():
     except KeyError:
         print("오류: GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
         print('설정: export GEMINI_API_KEY="your-key"  (Windows: setx GEMINI_API_KEY "your-key")')
-        return
-
-    # Temperature 유효성
-    if args.temperature is not None and not (0.0 <= args.temperature <= 2.0):
-        print(f"오류: temperature는 0.0-2.0 범위여야 합니다. (입력값: {args.temperature})")
         return
 
     # 입력 파일
@@ -623,25 +602,25 @@ def main():
         if args.multi_speaker:
             audio_data = multi_speaker_tts(
                 api_key, text, voice1, voice2, args.model,
-                style=args.style, temperature=args.temperature,
+                style=args.style,
             )
         else:
             audio_data = single_speaker_tts(
                 api_key, text, voice, args.model,
-                style=args.style, temperature=args.temperature,
+                style=args.style,
             )
     else:
         client = genai.Client(api_key=api_key)
         if args.multi_speaker:
             audio_data = legacy_multi_speaker_tts(
                 client, types, text, voice1, voice2, args.model,
-                style=args.style, temperature=args.temperature,
+                style=args.style,
                 language_code=args.language_code,
             )
         else:
             audio_data = legacy_single_speaker_tts(
                 client, types, text, voice, args.model,
-                style=args.style, temperature=args.temperature,
+                style=args.style,
                 language_code=args.language_code,
             )
 

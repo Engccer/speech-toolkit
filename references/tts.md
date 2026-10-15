@@ -26,13 +26,13 @@
 python TTS/gemini_tts.py input.txt
 python TTS/gemini_tts.py --list-voices              # 30개 프리셋
 python TTS/gemini_tts.py --list-tags                # 3.8 꺾쇠 태그 목록 (--model 레거시면 3.1 태그)
-python TTS/gemini_tts.py input.txt --style "천천히, 따뜻하게" --temperature 0.7
+python TTS/gemini_tts.py input.txt --style "천천히, 따뜻하게"
 python TTS/gemini_tts.py dialogue.txt --multi-speaker --voice1 Kore --voice2 Puck
 python TTS/gemini_tts.py input.txt --model gemini-3.8-flash-lite-tts
 python TTS/gemini_tts.py input.txt --model gemini-3.1-flash-tts-preview --language-code ko-KR
 ```
 
-옵션: `--voice`(기본 Puck) / `--multi-speaker --voice1 --voice2` / `--style` / `--temperature 0.0-2.0`(생략하면 모델 기본값) / `--model <override>` / `--language-code`(레거시 전용) / `--list-voices` / `--list-tags`.
+옵션: `--voice`(기본 Puck) / `--multi-speaker --voice1 --voice2` / `--style` / `--model <override>` / `--language-code`(레거시 전용) / `--list-voices` / `--list-tags`.
 
 **다중 화자**(`--multi-speaker`를 줄 때만, 자동 감지 없음): 대본의 `[화자1]`/`[화자2]`(또는 `[Speaker1]`/`[Speaker2]`, `[1]`/`[2]`) 태그로 대사를 나눈다. 두 명까지이며 다른 태그는 본문으로 읽힌다. 모든 모델에 같다.
 
@@ -172,4 +172,4 @@ python TTS/long_tts.py script.txt --compact-copy               # + 1.5배속 사
 
 Gemini 다중 화자와 ElevenLabs 다중 화자 모드는 입력을 한 번에 보내므로, 한도를 넘는 입력은 에이전트가 화자 전환 경계에서 나눠 조각마다 부르고 ffmpeg로 잇는다. MP3는 `ffmpeg -f concat -safe 0 -i list.txt -c copy <출력>`, WAV는 조각마다 헤더가 있어 `-c copy` 대신 `-c:a pcm_s16le`로 잇는다.
 
-조각마다 같은 `--voice`·`--style`·`--temperature`를 준다. ElevenLabs 다중 화자는 자동 배정이 조각마다 등장 순서로 다시 정해져 음성이 뒤바뀔 수 있으므로 모든 조각에 같은 `--voice-map`을 준다.
+조각마다 같은 `--voice`·`--style`을 준다. ElevenLabs 다중 화자는 자동 배정이 조각마다 등장 순서로 다시 정해져 음성이 뒤바뀔 수 있으므로 모든 조각에 같은 `--voice-map`을 준다.
