@@ -182,12 +182,12 @@ def build_turns(words, time_offset=0.0):
     return turns
 
 
-def render_turns(turns):
+def render_turns(turns, show_times=True):
     """화자 발화 목록을 출력 텍스트로 렌더링합니다."""
     lines = []
     for speaker, start, end, text in turns:
         prefix = f"[{speaker}] " if speaker else ""
-        if start is not None and end is not None:
+        if show_times and start is not None and end is not None:
             prefix += f"({format_timestamp(start)} - {format_timestamp(end)}) "
         lines.append(f"{prefix}{text}")
     return "\n".join(lines)
@@ -325,7 +325,9 @@ def main():
         mode = {"type": "verbatim"}
         if diarize:
             mode["diarization_mode"] = "speaker"
-        if args.word_timestamps:
+        # 화자 주석은 단어 주석(word_info)에 실려 오므로, 단어 타임스탬프를 켜지 않으면 화자 정보가 전혀 오지 않는다
+        # (2026-10-20 실측). 화자 분리만 원할 때도 요청하고, 시간 표기는 --word-timestamps일 때만 출력한다.
+        if args.word_timestamps or diarize:
             mode["timestamp_granularities"] = ["word"]
         transcription_config["mode"] = mode
 
@@ -384,7 +386,7 @@ def main():
         turns.extend(build_turns(words))
 
     # 결과 렌더링: 주석이 있으면 화자·시간 단위로, 없으면 본문 텍스트 그대로
-    body = render_turns(turns) if turns else "\n\n".join(texts)
+    body = render_turns(turns, show_times=args.word_timestamps) if turns else "\n\n".join(texts)
     if not body.strip():
         print("경고: 전사 결과가 비어 있습니다.")
     transcript = f"{chunk_note}\n\n{body}" if chunk_note else body
