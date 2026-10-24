@@ -13,7 +13,7 @@
 | `TTS/gemini_tts.py` | WAV (`_gemini_tts.wav`) | `GEMINI_API_KEY` | 3.8 기본(Lite 선택), 단일/다중 화자, 30개 프리셋 + 확장 음성, 인라인 보컬 태그 |
 | `TTS/elevenlabs_tts.py` | MP3 (`_elevenlabs.mp3`) | `ELEVENLABS_API_KEY` | 단일 화자 기본 v4(다중 화자는 서버 기본 모델), 단일+다중 통합 (자동 감지) |
 | `TTS/openai_tts.py` | MP3 (`_openai.mp3`) | `OPENAI_API_KEY` | gpt-4o-mini-tts, 13개 음성, `--instructions` 자연어 스티어링, 자동 청크 분할 |
-| `TTS/speechify_tts.py` | MP3 (`_speechify.mp3`) | `SPEECHIFY_API_KEY` | simba-3.0(기본, 한국어 포함), SSML 변환(속도·피치·볼륨·감정·정지) |
+| `TTS/speechify_tts.py` | MP3 (`_speechify.mp3`) | `SPEECHIFY_API_KEY` | simba-3.5(기본, 한국어 포함 48개 언어), SSML 변환(속도·피치·볼륨·정지) |
 | `TTS/long_tts.py` | ElevenLabs MP3 / Gemini WAV | 위 둘 중 하나 | 긴 단일 화자 대본을 나눠 합성·병합하고 길이로 절단 검증. [긴 텍스트 분할](#긴-텍스트-분할) |
 
 입력은 모두 `.txt`·`.md` 파일이다. 텍스트를 인자로 직접 받는 것은 `openai_tts.py`뿐이다.
@@ -149,9 +149,11 @@ python TTS/openai_tts.py input.txt --instructions "Whisper softly, intimate and 
 
 ## Speechify TTS
 
-기본 모델 **simba-3.0**은 카탈로그 음성 전부와 한국어 음성을 받는다. **simba-3.2**는 영어 전용이라 `_32` 접미사 음성과 함께 지정할 때만 쓴다(`--model simba-3.2 --voice harper_32`). 기본 음성 `george`는 한국어 음성이 아니므로 한국어 글은 `--voice`에 한국어 voice_id를 준다. 스크립트에 음성 목록 옵션은 없다.
+기본 모델 **simba-3.5**는 한국어 포함 48개 언어를 지원하며 모든 카탈로그 음성을 받는다. **simba-3.2**는 영어 음성 전용이다(`--model simba-3.2 --voice george`). 언어를 지정하지 않으면 음성의 locale을 따르므로, 한국어 글은 `--voice ah-reum`처럼 한국어 voice_id를 준다. 기본 음성은 `george`다. **simba-3.0**은 영어·독일어·스페인어·프랑스어·이탈리아어·포르투갈어를 공식 지원한다.
 
 옵션: `--voice` / `--model` / `-o <출력 경로>` / `--no-ssml` / `--rate 0%` / `--pitch +3%` / `--volume medium` / `--break-time 300ms` / `--emotion` / `--cadence` (값은 기본값).
+
+Simba 3.x는 감정 스타일 태그를 수락하지만 음성에 적용하지 않는다. `--emotion`과 그 안의 `--cadence`는 이 제약을 따른다. 모델·음성별 현재 지원 범위는 [Speechify 모델 문서](https://docs.speechify.ai/build/guides/concepts/models)와 API 모델·음성 목록을 확인한다.
 
 ## 긴 텍스트 분할
 

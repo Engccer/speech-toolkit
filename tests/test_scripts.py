@@ -4,11 +4,16 @@
 """
 
 import importlib.util
+import base64
+import contextlib
+import io
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -45,6 +50,29 @@ class HelpWithoutKeyTest(unittest.TestCase):
         result = self.run_help("TTS/long_tts.py")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("usage:", result.stdout)
+
+
+class SpeechifyRequestTest(unittest.TestCase):
+    def test_default_and_explicit_model_reach_synthesis_with_selected_voice(self):
+        for override, expected in (([], "simba-3.5"), (["--model", "simba-3.0"], "simba-3.0")):
+            with self.subTest(model=expected), tempfile.TemporaryDirectory() as temp:
+                source = os.path.join(temp, "notice.txt")
+                output = os.path.join(temp, "notice_speechify.mp3")
+                with open(source, "w", encoding="utf-8") as stream:
+                    stream.write("안녕하세요.")
+                audio = b"mock-mp3-audio"
+                speech = mock.Mock(return_value=SimpleNamespace(
+                    audio_data=base64.b64encode(audio).decode("ascii")))
+                sdk = mock.Mock(return_value=SimpleNamespace(audio=SimpleNamespace(speech=speech)))
+                with mock.patch.dict(sys.modules, {"speechify": SimpleNamespace(Speechify=sdk)}), \
+                     mock.patch.dict(os.environ, {"SPEECHIFY_API_KEY": "test-token"}), \
+                     mock.patch.object(sys, "argv", ["speechify_tts.py", source, "--voice", "ah-reum", "--no-ssml", *override]), \
+                     contextlib.redirect_stdout(io.StringIO()):
+                    load("TTS/speechify_tts.py").main()
+                speech.assert_called_once_with(
+                    input="안녕하세요.", voice_id="ah-reum", model=expected, audio_format="mp3")
+                with open(output, "rb") as stream:
+                    self.assertEqual(stream.read(), audio)
 
 
 class LongTtsTest(unittest.TestCase):
