@@ -15,7 +15,7 @@ metadata:
 - API 키는 환경변수로만 받는다(하드코딩 금지).
 - 성공은 출력 파일이 새로 생겼거나 갱신됐는지로 판정한다. 여러 스크립트가 키 부재·API 오류에도 종료 코드 0으로 끝난다.
 - Mistral STT는 새 전사문 저장 성공만 종료 코드 0이다. 실패 시 이전 출력은 보존하므로 파일 존재만으로 성공을 판단하지 않는다. `--help`·`-h`는 키·SDK 없이 확인할 수 있다.
-- OpenAI TTS의 기본 모델은 유지한다. `--model gpt-realtime-2.1-mini` 명시 경로는 최종 파일 교체 성공만 종료 코드 0이다. 원문 전사 불일치·미지원 음성·배속은 실패하며 자동 대체하지 않는다. 실합성·실제 발화 정확성은 미검증이다.
+- OpenAI TTS의 기본 모델은 유지한다. `--model gpt-realtime-2.1-mini` 명시 경로는 최종 파일 교체 성공만 종료 코드 0이다. 원문 전사 불일치·미지원 음성·배속은 실패하며 자동 대체하지 않는다. Mac의 짧은 영어·한국어·2청크 표본 실합성은 확인했으며 실제 발화 정확성·음질·장문·Windows는 별도 검증이 필요하다.
 - 의존성은 `pip install -r requirements.txt`. `muse_stt.py`는 ffmpeg가 늘, `gemini_transcribe_stt.py`는 상한을 넘는 파일을 나눌 때 ffmpeg/ffprobe가 필요하다.
 - OpenAI Realtime에는 websockets가, 압축 출력에는 ffmpeg가 필요하다. help·음성·모델 목록에는 키와 SDK가 필요 없다. 지원 음성·속도·실패 계약은 `references/tts.md`를 확인한다.
 

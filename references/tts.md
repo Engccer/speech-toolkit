@@ -12,7 +12,7 @@
 |------|------|---------|------|
 | `TTS/gemini_tts.py` | WAV (`_gemini_tts.wav`) | `GEMINI_API_KEY` | 3.8 기본(Lite 선택), 단일/다중 화자, 30개 프리셋 + 확장 음성, 인라인 보컬 태그 |
 | `TTS/elevenlabs_tts.py` | MP3 (`_elevenlabs.mp3`) | `ELEVENLABS_API_KEY` | 단일 화자 기본 v4(다중 화자는 서버 기본 모델), 단일+다중 통합 (자동 감지) |
-| `TTS/openai_tts.py` | MP3 (`_openai.mp3`) | `OPENAI_API_KEY` | 기존 기본 gpt-4o-mini-tts 유지. Realtime 명시 선택은 10개 음성·원문 전사 대조, 실합성 미검증 |
+| `TTS/openai_tts.py` | MP3 (`_openai.mp3`) | `OPENAI_API_KEY` | 기존 기본 gpt-4o-mini-tts 유지. Realtime 명시 선택은 10개 음성·원문 전사 대조, 짧은 표본 실합성 확인 |
 | `TTS/speechify_tts.py` | MP3 (`_speechify.mp3`) | `SPEECHIFY_API_KEY` | simba-3.5(기본, 한국어 포함 48개 언어), SSML 변환(속도·피치·볼륨·정지) |
 | `TTS/long_tts.py` | ElevenLabs MP3 / Gemini WAV | 위 둘 중 하나 | 긴 단일 화자 대본을 나눠 합성·병합하고 길이로 절단 검증. [긴 텍스트 분할](#긴-텍스트-분할) |
 
@@ -148,7 +148,7 @@ python TTS/openai_tts.py input.txt --instructions "Whisper softly, intimate and 
 
 ### Realtime 명시 선택
 
-이 경로는 오프라인 시험만 마쳤으며 실제 모델 합성·계정 접근·음색·한국어 발화는 미검증이다. Realtime은 응답을 생성하는 API여서 원문 낭독 지시 준수가 보장되지 않는다. [Realtime 계약](https://developers.openai.com/api/reference/resources/realtime/client-events)
+Mac에서 짧은 영어(marin·1.0배속), 한국어(cedar·1.25배속·스타일 지시), 영어 2청크의 4응답이 완료됐다. 각 전사문과 원문이 일치하고 WAV 저장·전체 디코드를 통과했으며 같은 PCM의 여섯 포맷 변환도 확인했다. 실제 발화 정확성·음색·배속의 체감·긴 자료·Windows 실행은 이 결과로 확정하지 않는다. Realtime은 응답을 생성하는 API여서 원문 낭독 지시 준수가 보장되지 않는다. [Realtime 계약](https://developers.openai.com/api/reference/resources/realtime/client-events)
 
 | 항목 | 동작 |
 |---|---|

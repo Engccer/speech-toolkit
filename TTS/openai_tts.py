@@ -6,7 +6,7 @@ OpenAI Audio API(/v1/audio/speech)로 텍스트를 자연스러운 음성으로 
 --model gpt-realtime-2.1-mini를 명시하면 Realtime API를 사용합니다.
   - Realtime: 10개 음성(fable/nova/onyx 제외), speed 0.25~1.5
   - 원문 전사 엄격 대조, PCM 결합 뒤 출력. 압축 포맷에는 ffmpeg 필요
-  - 실합성 미검증. 전사 일치가 실제 발화의 정확성을 보장하지는 않습니다.
+  - 짧은 표본 실합성 확인. 전사 일치가 실제 발화의 정확성을 보장하지는 않습니다.
 
 기본 모델: gpt-4o-mini-tts (current snapshot: gpt-4o-mini-tts-2025-12-15)
   - 13개 빌트인 음성 (alloy/ash/ballad/coral/echo/fable/nova/onyx/sage/shimmer/verse/marin/cedar)
@@ -115,7 +115,7 @@ KNOWN_MODELS = [
     ("gpt-4o-mini-tts-2025-03-20", "이전 dated 스냅샷"),
     ("tts-1-hd",                   "구형 고품질. instructions 미지원, 9개 음성"),
     ("tts-1",                      "구형 저지연. instructions 미지원, 9개 음성"),
-    (REALTIME_MODEL,              "명시 선택 Realtime. 10개 음성, 속도 0.25~1.5, 엄격한 원문 대조. 실합성 미검증"),
+    (REALTIME_MODEL,              "명시 선택 Realtime. 10개 음성, 속도 0.25~1.5, 엄격한 원문 대조. 실제 발화는 청취 확인 필요"),
 ]
 
 SUPPORTED_FORMATS = ["mp3", "opus", "aac", "flac", "wav", "pcm"]
@@ -628,7 +628,7 @@ def main():
     python openai_tts.py --list-voices
     python openai_tts.py --list-models
 
-  Realtime 명시 선택 (10개 음성, 속도 0.25~1.5, 실합성 미검증):
+  Realtime 명시 선택 (10개 음성, 속도 0.25~1.5, 실제 발화는 청취 확인 필요):
     python openai_tts.py input.txt --model gpt-realtime-2.1-mini
         """,
     )
