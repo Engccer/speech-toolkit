@@ -4,6 +4,7 @@ Mistral STT (Speech-to-Text) 스크립트 - Voxtral Transcribe 2
 
 사용법:
     python mistral_stt.py [입력파일]
+    python mistral_stt.py [입력파일] --lang ko --no-diarize
 
     입력파일을 지정하지 않으면 현재 디렉토리에서 지원 확장자 파일을 찾아 처음 것 하나를 씁니다.
     컨텍스트 메뉴에서 실행 시 절대 경로를 지원합니다.
@@ -37,7 +38,27 @@ def main():
         nargs="?",
         help="입력 오디오/비디오 파일 경로 (생략 시 현재 폴더에서 자동 탐색)",
     )
+    parser.add_argument(
+        "--lang", metavar="CODE",
+        help="언어 코드 두 글자 (예: ko, en). --no-diarize와 함께 사용",
+    )
+    parser.add_argument(
+        "--no-diarize", action="store_true",
+        help="화자 구분과 구간 타임스탬프 요청을 끄고 본문만 저장",
+    )
     args = parser.parse_args()
+    if args.lang is not None:
+        if len(args.lang) != 2 or not args.lang.isascii() or not args.lang.isalpha():
+            parser.error("--lang은 ko, en처럼 알파벳 두 글자 코드로 지정하세요.")
+        args.lang = args.lang.lower()
+        if not args.no_diarize:
+            parser.error("--lang은 구간 타임스탬프와 함께 쓸 수 없습니다. --no-diarize를 함께 지정하세요.")
+
+    transcription_options = {"diarize": not args.no_diarize}
+    if not args.no_diarize:
+        transcription_options["timestamp_granularities"] = ["segment"]
+    if args.lang is not None:
+        transcription_options["language"] = args.lang
 
     # 지원 확장자
     SUPPORTED_EXTENSIONS = [".mp3", ".m4a", ".wav", ".flac", ".ogg"]
@@ -166,12 +187,12 @@ def main():
                     "content": f,
                     "file_name": os.path.basename(input_file),
                 },
-                diarize=True,
-                timestamp_granularities=["segment"],
+                **transcription_options,
             )
 
         # 결과 포맷팅
-        transcript = format_transcript_with_speakers(response)
+        transcript = (getattr(response, "text", "") if args.no_diarize
+                      else format_transcript_with_speakers(response))
 
         if not transcript or not transcript.strip():
             print("오류: 전사 결과가 비어있습니다.")

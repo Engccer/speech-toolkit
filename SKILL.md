@@ -51,4 +51,5 @@ python TTS/gemini_tts.py report.md --voice Kore
 python STT/deepgram_stt.py meeting.m4a --lang ko
 python STT/gemini_transcribe_stt.py meeting.m4a --lang ko-KR
 python STT/muse_stt.py meeting.m4a --lang ko,en --timestamps
+python STT/mistral_stt.py lecture.mp3 --lang ko --no-diarize
 ```

@@ -45,6 +45,7 @@ python STT/elevenlabs_stt.py interview.mp3        # 2GB까지
 python STT/deepgram_stt.py podcast.wav            # 한국어 기본, 빠름
 python STT/muse_stt.py meeting.m4a --lang ko,en   # 한·영 코드 스위칭, 화자 분리 기본
 python STT/mistral_stt.py lecture.flac            # 1GB/3시간, $0.003/분
+python STT/mistral_stt.py lecture.flac --lang ko --no-diarize  # 한국어 지정, 본문만 저장
 python STT/daglo_stt.py recording.m4a             # ngrok 사전 설정 필요
 ```
 
@@ -91,9 +92,18 @@ python STT/daglo_stt.py recording.m4a             # ngrok 사전 설정 필요
 
 `python STT/mistral_stt.py [입력파일]`은 파일을 생략하면 MP3, M4A, WAV, FLAC, OGG 순으로 처음 찾은 파일 하나를 처리한다. `--help`·`-h`는 API 키와 SDK 없이 종료 코드 0으로 도움말을 표시한다.
 
+| 옵션 | 기본값 | 설명 |
+|------|--------|------|
+| `--lang CODE` | 자동 감지 | `ko`, `en` 같은 두 글자 코드. 대문자는 소문자로 정규화한다. `--no-diarize`와 함께 사용한다 |
+| `--no-diarize` | 해제 | 화자 구분·구간 타임스탬프 요청을 끄고 전체 본문을 저장한다 |
+
+모델은 `voxtral-mini-latest`다. 기본 요청은 `diarize=True`, `timestamp_granularities=["segment"]`이며 화자는 `[화자 N]`으로 표기한다. [Voxtral 2 문서](https://docs.mistral.ai/studio/audio/deprecated/speech_to_text/offline_transcription)는 언어 지정과 구간 타임스탬프의 병용을 지원하지 않는다. 따라서 언어를 지정하려면 `--lang ko --no-diarize`처럼 화자 구분 해제를 명시해야 한다. `--lang`만 사용하면 API 요청 전에 종료 코드 2로 거부한다.
+
+`--no-diarize`는 타임스탬프 필드를 보내지 않으며 응답의 전체 본문을 화자 라벨 없이 저장한다. 단독 사용하면 언어는 자동 감지한다. 언어 코드의 서비스 지원 여부는 서버 응답으로 확인하며 거부 응답은 실패로 전달한다. 언어 지정이 전사 정확도를 보장하지는 않는다.
+
 전사는 비어 있지 않은 결과를 UTF-8 `<입력파일명>_mistral.txt`로 저장했을 때만 종료 코드 0이다. 잘못된 인자는 2, 입력·키·SDK·API·빈 결과·저장 오류는 1이다. 입력 파일이 비었거나 1 GiB를 초과하면 API 요청 전에 거부한다. 서비스의 길이 제한은 서버 응답으로 확인하며, 거부 응답도 실패로 전달한다.
 
-새 출력은 같은 폴더의 임시 파일에 모두 쓴 다음 교체한다. 실패하면 이전 파일을 보존하므로 자동화에서는 종료 코드와 새 출력 내용을 함께 확인한다. 모델은 `voxtral-mini-latest`이며 `diarize=True`, `timestamp_granularities=["segment"]`로 요청한다. 화자는 `[화자 N]`으로 표기한다.
+새 출력은 같은 폴더의 임시 파일에 모두 쓴 다음 교체한다. 실패하면 이전 파일을 보존하므로 자동화에서는 종료 코드와 새 출력 내용을 함께 확인한다.
 
 ## Gemini 3.5 Transcribe 옵션
 

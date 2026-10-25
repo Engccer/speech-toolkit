@@ -45,6 +45,8 @@ class MistralCliTest(unittest.TestCase):
                 result = self.run_cli("missing_sdk", [flag], key=None)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn("usage:", result.stdout)
+                self.assertIn("--lang", result.stdout)
+                self.assertIn("--no-diarize", result.stdout)
 
     def test_missing_or_empty_key_is_failure(self):
         for key in (None, "", "   "):
@@ -101,6 +103,56 @@ class MistralCliTest(unittest.TestCase):
         result = self.run_cli("plain")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(self.output.read_text(encoding="utf-8"), "한국어 전체 전사")
+
+    def test_language_requires_explicit_plain_mode_before_sdk_or_input(self):
+        self.output.write_text("이전 결과", encoding="utf-8")
+        before = self.output.read_bytes(), self.output.stat().st_mtime_ns
+        result = self.run_cli("missing_sdk", ["--lang", "ko"], key=None)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("--no-diarize", result.stderr)
+        self.assertFalse((self.work / "client-created").exists())
+        self.assertEqual((self.output.read_bytes(), self.output.stat().st_mtime_ns), before)
+
+    def test_invalid_language_is_rejected_before_client(self):
+        for language in ("", " ", "ko-KR", "kor", "k", "ko,en", "한국", "12", "éa", "KO"):
+            with self.subTest(language=language):
+                result = self.run_cli(args=[str(self.source), "--no-diarize", "--lang", language])
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertFalse((self.work / "client-created").exists())
+
+    def test_language_plain_request_omits_timestamps_and_normalizes_case(self):
+        result = self.run_cli("plain", [str(self.source), "--lang", "KO", "--no-diarize"])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        request = json.loads((self.work / "request.json").read_text(encoding="utf-8"))
+        self.assertEqual(request, {"model": "voxtral-mini-latest", "file_name": self.source.name,
+                                  "content": "sample-audio", "diarize": False, "language": "ko"})
+        self.assertEqual(self.output.read_text(encoding="utf-8"), "한국어 전체 전사")
+
+    def test_plain_mode_uses_full_text_even_if_segments_are_returned(self):
+        result = self.run_cli(args=[str(self.source), "--no-diarize"])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        request = json.loads((self.work / "request.json").read_text(encoding="utf-8"))
+        self.assertEqual(request, {"model": "voxtral-mini-latest", "file_name": self.source.name,
+                                  "content": "sample-audio", "diarize": False})
+        self.assertEqual(self.output.read_text(encoding="utf-8"), "fallback")
+
+    def test_language_plain_failures_preserve_previous_output(self):
+        self.output.write_text("이전 결과", encoding="utf-8")
+        before = self.output.read_bytes(), self.output.stat().st_mtime_ns
+        for scenario in ("empty", "whitespace", "authentication", "rate_limit", "api_error",
+                         "write_error", "replace_error"):
+            with self.subTest(scenario=scenario):
+                result = self.run_cli(scenario, [str(self.source), "--lang", "ko", "--no-diarize"])
+                self.assert_failed(result)
+                self.assertEqual((self.output.read_bytes(), self.output.stat().st_mtime_ns), before)
+                self.assertEqual(list(self.work.glob("*.tmp")), [])
+
+    def test_language_plain_mode_keeps_auto_discovery(self):
+        result = self.run_cli("plain", ["--lang", "en", "--no-diarize"])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        request = json.loads((self.work / "request.json").read_text(encoding="utf-8"))
+        self.assertEqual(request["file_name"], self.source.name)
+        self.assertEqual(request["language"], "en")
 
     def test_auto_discovery_keeps_extension_priority(self):
         (self.work / "first.wav").write_bytes(b"other")

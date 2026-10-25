@@ -24,7 +24,8 @@ def complete(**kwargs):
         "file_name": kwargs["file"]["file_name"],
         "content": kwargs["file"]["content"].read().decode("ascii"),
         "diarize": kwargs["diarize"],
-        "timestamp_granularities": kwargs["timestamp_granularities"],
+        **{name: kwargs[name] for name in ("timestamp_granularities", "language")
+           if name in kwargs},
     }), encoding="utf-8")
     if scenario in ("authentication", "rate_limit", "api_error"):
         raise RuntimeError({"authentication": "Unauthorized", "rate_limit": "Rate limit", "api_error": "Service unavailable"}[scenario])
