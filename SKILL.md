@@ -3,7 +3,7 @@ name: speech-toolkit
 description: "텍스트→음성(TTS)과 음성→텍스트(STT) 변환 CLI 스크립트 모음. TTS는 Gemini/ElevenLabs/OpenAI/Speechify 4종, STT는 Daglo/Deepgram/ElevenLabs/Gemini/Gemini 3.5 Transcribe/Meta Muse/Mistral 7종. 다음 요청에 사용: 텍스트를 음성으로 변환, 나레이션·오디오북 음원 생성, 음성·영상 파일 전사, 회의 녹음 텍스트 변환, TTS, STT, transcription. Use for text-to-speech (TTS) and speech-to-text (STT): generate narration audio from text or transcribe audio/video files to text with multiple AI providers."
 license: MIT
 metadata:
-  version: "1.5.0"
+  version: "2.0.0"
 ---
 
 # speech-toolkit
@@ -15,7 +15,7 @@ metadata:
 - API 키는 환경변수로만 받는다(하드코딩 금지).
 - 성공은 출력 파일이 새로 생겼거나 갱신됐는지로 판정한다. 여러 스크립트가 키 부재·API 오류에도 종료 코드 0으로 끝난다.
 - Mistral STT는 새 전사문 저장 성공만 종료 코드 0이다. 실패 시 이전 출력은 보존하므로 파일 존재만으로 성공을 판단하지 않는다. `--help`·`-h`는 키·SDK 없이 확인할 수 있다.
-- OpenAI TTS의 기본 모델은 유지한다. `--model gpt-realtime-2.1-mini` 명시 경로는 최종 파일 교체 성공만 종료 코드 0이다. 원문 전사 불일치·미지원 음성·배속은 실패하며 자동 대체하지 않는다. Mac의 짧은 영어·한국어·2청크 표본 실합성은 확인했으며 실제 발화 정확성·음질·장문·Windows는 별도 검증이 필요하다.
+- OpenAI TTS는 `gpt-realtime-2.1-mini`만 사용한다. 합성은 최종 파일 교체 성공만 exit 0, 실패는 exit 1이며 이전 출력을 보존한다. 미지원 모델은 호출 전 exit 2로 거부한다. 원문 전사 불일치·미지원 음성·배속을 자동 대체하지 않는다.
 - 의존성은 `pip install -r requirements.txt`. `muse_stt.py`는 ffmpeg가 늘, `gemini_transcribe_stt.py`는 상한을 넘는 파일을 나눌 때 ffmpeg/ffprobe가 필요하다.
 - OpenAI Realtime에는 websockets가, 압축 출력에는 ffmpeg가 필요하다. help·음성·모델 목록에는 키와 SDK가 필요 없다. 지원 음성·속도·실패 계약은 `references/tts.md`를 확인한다.
 
@@ -24,7 +24,7 @@ metadata:
 | 작업 | 스크립트 | 필요 환경변수 |
 |---|---|---|
 | TTS(표현력·다화자 2명·보컬 태그) | `TTS/gemini_tts.py` | `GEMINI_API_KEY` |
-| TTS(감정·억양 자연어 지시, Realtime 명시 선택) | `TTS/openai_tts.py` | `OPENAI_API_KEY` |
+| TTS(감정·억양 자연어 지시, Realtime) | `TTS/openai_tts.py` | `OPENAI_API_KEY` |
 | TTS(한국어 음성 프리셋·다화자 대본) | `TTS/elevenlabs_tts.py` | `ELEVENLABS_API_KEY` |
 | TTS(SSML 세밀 제어: 속도·피치·정지) | `TTS/speechify_tts.py` | `SPEECHIFY_API_KEY` |
 | TTS(긴 단일 화자 대본: 분할·병합·길이 검증) | `TTS/long_tts.py` | `ELEVENLABS_API_KEY` 또는 `GEMINI_API_KEY` |

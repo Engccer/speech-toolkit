@@ -1,28 +1,21 @@
 #!/usr/bin/env python3.12
 """
 OpenAI TTS (Text-to-Speech) 스크립트
-OpenAI Audio API(/v1/audio/speech)로 텍스트를 자연스러운 음성으로 변환합니다.
-기존 TTS 모델은 2027-01-06 종료 예정입니다. 기본 경로는 유지합니다.
---model gpt-realtime-2.1-mini를 명시하면 Realtime API를 사용합니다.
-  - Realtime: 10개 음성(fable/nova/onyx 제외), speed 0.25~1.5
-  - 원문 전사 엄격 대조, PCM 결합 뒤 출력. 압축 포맷에는 ffmpeg 필요
-  - 짧은 표본 실합성 확인. 전사 일치가 실제 발화의 정확성을 보장하지는 않습니다.
-
-기본 모델: gpt-4o-mini-tts (current snapshot: gpt-4o-mini-tts-2025-12-15)
-  - 13개 빌트인 음성 (alloy/ash/ballad/coral/echo/fable/nova/onyx/sage/shimmer/verse/marin/cedar)
-  - 자연어 `instructions` 파라미터로 톤·악센트·감정·속도·속삭임 스티어링
-  - 한도: 입력 4,096자 / 2,000 토큰(--chunk-size 기본 3,000자 초과 시 자동 청크 분할)
-  - 한국어 본문도 지원 (음성은 영어 최적화)
+OpenAI Realtime API로 텍스트를 음성 파일로 변환합니다.
+기본·유일 지원 모델: gpt-realtime-2.1-mini
+  - 10개 음성, speed 0.25~1.5, 자연어 instructions로 톤 지시
+  - 청크별 원문 전사 대조 후 PCM을 결합해 한 파일로 저장
+  - 압축 포맷에는 ffmpeg 필요. 실패 시 이전 출력 보존
 
 사용법:
     python openai_tts.py [파일경로 또는 "텍스트"] [옵션]
 
 옵션:
     --voice NAME            음성 선택 (기본: marin). marin/cedar 권장.
-    --model NAME            모델 override (기본: gpt-4o-mini-tts)
+    --model NAME            지원 모델: gpt-realtime-2.1-mini (기본값)
     --format FMT            출력 포맷: mp3|opus|aac|flac|wav|pcm (기본: mp3)
-    --speed FLOAT           재생 속도 0.25-4.0 (기본: 1.0)
-    --instructions TEXT     자연어 톤 지시 (gpt-4o-mini-tts 또는 Realtime)
+    --speed FLOAT           재생 속도 0.25~1.5 (기본: 1.0)
+    --instructions TEXT     자연어 톤 지시
     --chunk-size N          청크당 최대 글자 수 (기본: 3000, max 4096)
     --list-voices           음성 목록 출력
     --list-models           모델 목록 출력
@@ -40,13 +33,12 @@ OpenAI Audio API(/v1/audio/speech)로 텍스트를 자연스러운 음성으로 
     "Calm, professional narrator voice for an audiobook."
 
 주의:
-    - tts-1 / tts-1-hd는 --instructions 미지원 (gpt-4o-mini-tts 전용 기능)
-    - --chunk-size(기본 3,000자) 초과 시 문장 경계로 자동 분할 후 바이트 concat (mp3/opus/aac/pcm만 안전)
+    - --chunk-size 기본 3,000자, 최대 4,096자는 로컬 분할 기준이며 발화 완결성을 보장하지 않음
+    - 모델 전사 일치가 실제 발화 정확성을 보장하지 않으므로 중요 자료는 전체 청취 필요
     - 사용 정책상 합성 음성임을 최종 사용자에게 명시 의무
 
 참고:
-    https://developers.openai.com/api/docs/guides/text-to-speech
-    https://platform.openai.com/playground/tts  (음성 미리듣기)
+    https://developers.openai.com/api/docs/guides/realtime
 """
 
 import argparse
@@ -76,50 +68,38 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 
-DEFAULT_MODEL = "gpt-4o-mini-tts"
+DEFAULT_MODEL = "gpt-realtime-2.1-mini"
+REALTIME_MODEL = DEFAULT_MODEL
 DEFAULT_VOICE = "marin"
 DEFAULT_FORMAT = "mp3"
 DEFAULT_SPEED = 1.0
 DEFAULT_CHUNK_SIZE = 3000  # 문자 상한의 마진이며 한국어 토큰 한도를 보장하지 않는다
 HARD_CHAR_LIMIT = 4096
 
-API_URL = "https://api.openai.com/v1/audio/speech"
-REALTIME_MODEL = "gpt-realtime-2.1-mini"
 REALTIME_CLEANUP_TIMEOUT = 5
 REALTIME_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"}
 ENCODERS = {"mp3": ("libmp3lame", "mp3"), "opus": ("libopus", "opus"),
             "aac": ("aac", "adts"), "flac": ("flac", "flac")}
 
-# 13개 빌트인 음성. gpt-4o-mini-tts 전체 지원, tts-1/hd는 9개만 (verse/marin/cedar 제외)
+# Realtime에서 지원하는 10개 음성.
 AVAILABLE_VOICES = [
     ("alloy",   "중성적이고 차분한 톤"),
     ("ash",     "에너지 있고 명확한 남성 톤"),
     ("ballad",  "부드럽고 서정적인 톤"),
     ("coral",   "따뜻하고 친근한 톤 (공식 가이드 예시)"),
     ("echo",    "낮고 차분한 남성 톤"),
-    ("fable",   "이야기꾼 스타일, 영국식 억양"),
-    ("nova",    "젊고 밝은 여성 톤"),
-    ("onyx",    "깊고 권위 있는 남성 톤"),
     ("sage",    "지적이고 신중한 톤"),
     ("shimmer", "밝고 표현력 있는 여성 톤"),
-    ("verse",   "다재다능한 표현형 톤 (gpt-4o-mini-tts 전용)"),
+    ("verse",   "다재다능한 표현형 톤"),
     ("marin",   "OpenAI 공식 권장. 자연스럽고 균형 잡힌 톤 (기본값)"),
     ("cedar",   "OpenAI 공식 권장. 무게감 있는 톤"),
 ]
 
-LEGACY_ONLY_VOICES = {"alloy", "ash", "coral", "echo", "fable", "onyx", "nova", "sage", "shimmer"}
-
 KNOWN_MODELS = [
-    ("gpt-4o-mini-tts",            "기존 기본값. 13개 음성, 2027-01-06 종료 예정"),
-    ("gpt-4o-mini-tts-2025-12-15", "최신 dated 스냅샷. 재현성 보장용 고정 버전"),
-    ("gpt-4o-mini-tts-2025-03-20", "이전 dated 스냅샷"),
-    ("tts-1-hd",                   "구형 고품질. instructions 미지원, 9개 음성"),
-    ("tts-1",                      "구형 저지연. instructions 미지원, 9개 음성"),
-    (REALTIME_MODEL,              "명시 선택 Realtime. 10개 음성, 속도 0.25~1.5, 엄격한 원문 대조. 실제 발화는 청취 확인 필요"),
+    (REALTIME_MODEL, "기본 모델. 10개 음성, 속도 0.25~1.5, 원문 전사 대조. 실제 발화는 청취 확인 필요"),
 ]
 
 SUPPORTED_FORMATS = ["mp3", "opus", "aac", "flac", "wav", "pcm"]
-SAFE_CONCAT_FORMATS = {"mp3", "opus", "aac", "pcm"}  # 바이트 concat 가능한 포맷(pcm은 헤더 없음)
 
 SUPPORTED_EXTENSIONS = [".txt", ".md"]
 
@@ -147,16 +127,13 @@ def get_output_filename(input_file, fmt):
 
 
 def list_voices():
-    print("\n사용 가능한 OpenAI TTS 음성 (13개):")
+    print(f"\n사용 가능한 OpenAI TTS 음성 ({REALTIME_MODEL}, {len(AVAILABLE_VOICES)}개):")
     print("-" * 70)
     for name, desc in AVAILABLE_VOICES:
-        legacy_mark = "  (tts-1/hd 공통)" if name in LEGACY_ONLY_VOICES else "  (gpt-4o-mini-tts 전용)"
-        print(f"  {name:<10}{legacy_mark}")
+        print(f"  {name:<10}")
         print(f"  {'':<10}  {desc}")
     print("-" * 70)
     print("\n공식 권장: marin, cedar")
-    print(f"{REALTIME_MODEL}: fable/nova/onyx 제외 10개 음성 (자동 대체 없음)")
-    print("미리듣기: https://platform.openai.com/playground/tts 또는 https://openai.fm")
     print("\n사용 예:")
     print("  python openai_tts.py input.txt --voice marin")
     print('  python openai_tts.py input.txt --voice coral --instructions "Cheerful and friendly"')
@@ -235,45 +212,8 @@ def _hard_split(text, max_chars):
     return [text[i:i + max_chars] for i in range(0, len(text), max_chars)]
 
 
-def synthesize_chunk(api_key, model, voice, text, fmt, speed, instructions):
-    """단일 청크를 합성하여 오디오 바이트 반환"""
-    try:
-        import requests
-    except ImportError:
-        print(f"오류: requests 패키지가 필요합니다. (Python: {sys.executable})")
-        print(f'설치: "{sys.executable}" -m pip install requests')
-        sys.exit(1)
-
-    payload = {
-        "model": model,
-        "voice": voice,
-        "input": text,
-        "response_format": fmt,
-        "speed": speed,
-    }
-    if instructions and model.startswith("gpt-4o-mini-tts"):
-        payload["instructions"] = instructions
-    elif instructions:
-        print(f"경고: {model}은 --instructions 미지원입니다. 무시됨.")
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-
-    resp = requests.post(API_URL, headers=headers, json=payload, timeout=180)
-    if resp.status_code != 200:
-        try:
-            err = resp.json().get("error", {})
-            msg = err.get("message", resp.text)
-        except Exception:
-            msg = resp.text
-        raise RuntimeError(f"API 오류 (HTTP {resp.status_code}): {msg}")
-    return resp.content
-
-
 class RealtimeError(RuntimeError):
-    """원문이나 서버 응답을 포함하지 않는 새 경로 오류."""
+    """원문이나 서버 응답을 포함하지 않는 합성 오류."""
 
 
 def normalized_text(text):
@@ -606,7 +546,7 @@ def run_realtime(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="OpenAI TTS - 텍스트를 음성으로 변환 (기본: gpt-4o-mini-tts)",
+        description=f"OpenAI TTS - 텍스트를 음성으로 변환 (모델: {DEFAULT_MODEL})",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 예시:
@@ -614,7 +554,7 @@ def main():
     python openai_tts.py input.txt
     python openai_tts.py "안녕하세요. 오늘 날씨가 참 좋네요."
 
-  스티어링 (gpt-4o-mini-tts 전용):
+  자연어 톤 지시:
     python openai_tts.py input.txt --instructions "Speak cheerfully and warmly"
     python openai_tts.py input.txt --voice cedar --instructions "Calm narrator voice"
 
@@ -622,14 +562,12 @@ def main():
     python openai_tts.py input.txt --voice coral --format wav --speed 1.2
 
   긴 문서 (자동 청크 분할):
-    python openai_tts.py long_article.md            # 3000자(--chunk-size) 초과 시 자동 분할 + concat
+    python openai_tts.py long_article.md            # 청크별 합성 후 PCM 결합·단일 파일 저장
 
   목록 조회:
     python openai_tts.py --list-voices
     python openai_tts.py --list-models
 
-  Realtime 명시 선택 (10개 음성, 속도 0.25~1.5, 실제 발화는 청취 확인 필요):
-    python openai_tts.py input.txt --model gpt-realtime-2.1-mini
         """,
     )
     parser.add_argument("input", nargs="?",
@@ -637,14 +575,15 @@ def main():
     parser.add_argument("--voice", default=DEFAULT_VOICE,
                         help=f"음성 (기본: {DEFAULT_VOICE}). --list-voices로 확인")
     parser.add_argument("--model", default=DEFAULT_MODEL,
+                        choices=[REALTIME_MODEL],
                         help=f"모델 (기본: {DEFAULT_MODEL})")
     parser.add_argument("--format", dest="fmt", default=DEFAULT_FORMAT,
                         choices=SUPPORTED_FORMATS,
                         help=f"출력 포맷 (기본: {DEFAULT_FORMAT})")
     parser.add_argument("--speed", type=float, default=DEFAULT_SPEED,
-                        help=f"속도 0.25-4.0, Realtime은 0.25~1.5 (기본: {DEFAULT_SPEED})")
+                        help=f"속도 0.25~1.5 (기본: {DEFAULT_SPEED})")
     parser.add_argument("--instructions",
-                        help="자연어 톤 지시 (gpt-4o-mini-tts 또는 Realtime)")
+                        help="자연어 톤 지시")
     parser.add_argument("--chunk-size", dest="chunk_size", type=int,
                         default=DEFAULT_CHUNK_SIZE,
                         help=f"청크당 최대 글자 (기본: {DEFAULT_CHUNK_SIZE}, max {HARD_CHAR_LIMIT})")
@@ -660,108 +599,7 @@ def main():
         list_models()
         return
 
-    if args.model == REALTIME_MODEL:
-        return run_realtime(args)
-
-    # 유효성 검증
-    if not (0.25 <= args.speed <= 4.0):
-        print(f"오류: --speed는 0.25-4.0 범위여야 합니다. (입력값: {args.speed})")
-        return
-
-    if args.chunk_size > HARD_CHAR_LIMIT:
-        print(f"오류: --chunk-size는 {HARD_CHAR_LIMIT} 이하여야 합니다.")
-        return
-
-    voice = validate_voice(args.voice)
-    if not voice:
-        print(f"오류: 알 수 없는 음성: {args.voice}")
-        print("--list-voices 옵션으로 사용 가능한 음성을 확인하세요.")
-        return
-
-    if voice not in LEGACY_ONLY_VOICES and args.model in ("tts-1", "tts-1-hd"):
-        print(f"오류: '{voice}' 음성은 {args.model}에서 지원하지 않습니다.")
-        print(f"가능한 음성: {', '.join(sorted(LEGACY_ONLY_VOICES))}")
-        return
-
-    if args.fmt not in SAFE_CONCAT_FORMATS:
-        # 청크 분할이 필요한지 미리 알 수 없으므로, 위험만 알린다
-        pass
-
-    try:
-        api_key = os.environ["OPENAI_API_KEY"]
-    except KeyError:
-        print("오류: OPENAI_API_KEY 환경 변수가 설정되지 않았습니다.")
-        print('설정: setx OPENAI_API_KEY "your-key"  (Windows)')
-        print('      export OPENAI_API_KEY="your-key"  (macOS/Linux)')
-        return
-
-    # 입력 텍스트 결정: 파일 경로 vs 직접 텍스트 vs 자동 탐색
-    if args.input and os.path.exists(args.input):
-        input_file = args.input
-        ext = os.path.splitext(input_file)[1].lower()
-        if ext not in SUPPORTED_EXTENSIONS:
-            print(f"오류: 지원하지 않는 파일 형식: {ext}")
-            print(f"지원: {', '.join(SUPPORTED_EXTENSIONS)}")
-            return
-        with open(input_file, "r", encoding="utf-8") as f:
-            text = f.read().strip()
-        output_file = get_output_filename(input_file, args.fmt)
-    elif args.input:
-        # 파일이 아니면 직접 텍스트로 간주
-        text = args.input.strip()
-        output_file = get_output_filename("output.txt", args.fmt)
-    else:
-        input_file = find_input_file()
-        if not input_file:
-            print("오류: 입력 파일을 찾을 수 없습니다.")
-            print('사용법: python openai_tts.py <파일경로 또는 "텍스트">')
-            print(f"지원 형식: {', '.join(SUPPORTED_EXTENSIONS)}")
-            return
-        with open(input_file, "r", encoding="utf-8") as f:
-            text = f.read().strip()
-        output_file = get_output_filename(input_file, args.fmt)
-
-    if not text:
-        print("오류: 입력 텍스트가 비어있습니다.")
-        return
-
-    # 청크 분할
-    chunks = split_text_into_chunks(text, args.chunk_size)
-
-    print(f"텍스트 길이: {len(text)}자")
-    print(f"모델: {args.model} / 음성: {voice} / 포맷: {args.fmt} / 속도: {args.speed}")
-    if args.instructions:
-        print(f"스티어링: {args.instructions[:60]}{'...' if len(args.instructions) > 60 else ''}")
-    if len(chunks) > 1:
-        print(f"청크 {len(chunks)}개로 분할 ({args.chunk_size}자 단위)")
-        if args.fmt not in SAFE_CONCAT_FORMATS:
-            print(f"  ⚠ {args.fmt} 포맷은 단순 concat이 안전하지 않을 수 있음. mp3/opus/aac/pcm 권장.")
-
-    # 청크별 합성
-    audio_parts = []
-    for i, chunk in enumerate(chunks, 1):
-        if len(chunks) > 1:
-            print(f"  [{i}/{len(chunks)}] {len(chunk)}자 합성 중...")
-        else:
-            print("음성 변환 중...")
-        try:
-            audio_bytes = synthesize_chunk(
-                api_key, args.model, voice, chunk,
-                args.fmt, args.speed, args.instructions,
-            )
-        except RuntimeError as e:
-            print(f"오류: {e}")
-            return
-        audio_parts.append(audio_bytes)
-
-    # 결합 및 저장
-    combined = b"".join(audio_parts)
-    with open(output_file, "wb") as f:
-        f.write(combined)
-
-    size_kb = len(combined) / 1024
-    print(f"\n저장 완료: {output_file} ({size_kb:.1f} KB)")
-    print("ℹ 사용 정책: AI 합성 음성임을 최종 사용자에게 명시할 의무가 있습니다.")
+    return run_realtime(args)
 
 
 if __name__ == "__main__":

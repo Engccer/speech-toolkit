@@ -104,16 +104,13 @@ class RealtimeTest(unittest.TestCase):
         for name in ("connect", "connect_ex"):
             self.enterContext(mock.patch.object(socket.socket, name, side_effect=AssertionError("network disabled")))
         self.enterContext(mock.patch.object(socket, "getaddrinfo", side_effect=AssertionError("network disabled")))
-        self.original_synthesize = self.mod.synthesize_chunk
-        self.legacy = self.enterContext(mock.patch.object(
-            self.mod, "synthesize_chunk", side_effect=RuntimeError("REST called unexpectedly")))
 
     def run_cli(self, extra=(), connection=None, source=None, no_input=False):
         connection = connection or FakeConnection()
         connector = mock.Mock(return_value=connection)
         with mock.patch.object(self.mod, "load_realtime_connector", return_value=connector, create=True), \
                 mock.patch.object(sys, "argv", [str(SCRIPT), *([] if no_input else [str(self.source if source is None else source)]),
-                                               "--model", MODEL, "--format", "pcm", *extra]), \
+                                               "--format", "pcm", *extra]), \
                 contextlib.redirect_stdout(io.StringIO()) as out:
             code = self.mod.main()
         self.log = out.getvalue()
@@ -134,7 +131,6 @@ class RealtimeTest(unittest.TestCase):
                 code, _ = self.run_cli(options)
                 self.assertEqual(code, 1)
                 self.connector.assert_not_called()
-                self.legacy.assert_not_called()
                 self.assert_preserved()
 
     def test_success_request_is_isolated_and_preserves_filename(self):
@@ -143,7 +139,6 @@ class RealtimeTest(unittest.TestCase):
         self.assertEqual(self.output.read_bytes(), PCM)
         self.assertTrue(connection.closed)
         self.assertFalse(any(t.name.startswith("openai-deadline") for t in threading.enumerate()))
-        self.legacy.assert_not_called()
         session, request = connection.sent
         self.assertEqual(session["session"]["audio"]["output"], {
             "format": {"type": "audio/pcm", "rate": 24000}, "voice": "cedar", "speed": 1.25})
@@ -452,30 +447,48 @@ class RealtimeTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(self.output.read_bytes(), PCM)
 
-    def test_legacy_rest_payload_and_http_failure_contract_remain(self):
-        from types import SimpleNamespace
-        self.legacy.side_effect = self.original_synthesize
-        for options, model, voice, speed in (([], "gpt-4o-mini-tts", "marin", 1.0),
-                    (["--model", "tts-1", "--voice", "nova", "--speed", "4.0"], "tts-1", "nova", 4.0)):
-            post = mock.Mock(return_value=SimpleNamespace(status_code=200, content=b"rest-audio"))
-            with mock.patch.dict(sys.modules, {"requests": SimpleNamespace(post=post)}), \
-                    mock.patch.object(sys, "argv", [str(SCRIPT), str(self.source), "--format", "pcm",
-                                                   "--instructions", "Calm", *options]), \
-                    contextlib.redirect_stdout(io.StringIO()):
-                code = self.mod.main()
-            self.assertIsNone(code)
-            payload = {"model": model, "voice": voice, "input": "Hello.", "response_format": "pcm", "speed": speed}
-            if model == "gpt-4o-mini-tts":
-                payload["instructions"] = "Calm"
-            self.assertEqual(post.call_args.kwargs["json"], payload)
-            self.assertEqual(post.call_args.kwargs["timeout"], 180)
-            self.assertEqual(self.output.read_bytes(), b"rest-audio")
-        post = mock.Mock(return_value=SimpleNamespace(status_code=500, text="offline", json=lambda: {"error": {"message": "offline"}}))
-        with mock.patch.dict(sys.modules, {"requests": SimpleNamespace(post=post)}), \
-                mock.patch.object(sys, "argv", [str(SCRIPT), str(self.source), "--format", "pcm"]), \
-                contextlib.redirect_stdout(io.StringIO()):
-            self.assertIsNone(self.mod.main())
-        self.assertEqual(self.output.read_bytes(), b"rest-audio")
+    def test_plain_invocation_uses_realtime_defaults(self):
+        with mock.patch.object(self.mod, "run_realtime", return_value=0) as run, \
+                mock.patch.object(sys, "argv", [str(SCRIPT), str(self.source)]):
+            self.assertEqual(self.mod.main(), 0)
+        run.assert_called_once()
+        options = run.call_args.args[0]
+        self.assertEqual((options.model, options.voice, options.fmt, options.speed),
+                         (MODEL, "marin", "mp3", 1.0))
+
+    def test_explicit_supported_model_uses_same_realtime_connection(self):
+        code, _ = self.run_cli(("--model", MODEL))
+        self.assertEqual(code, 0)
+        self.assertEqual(self.connector.call_args.args[0],
+                         f"wss://api.openai.com/v1/realtime?model={MODEL}")
+        self.assertEqual(self.output.read_bytes(), PCM)
+
+    def test_retired_and_unknown_models_fail_before_connecting(self):
+        for model in ("gpt-4o-mini-tts", "gpt-4o-mini-tts-2025-12-15",
+                      "gpt-4o-mini-tts-2025-03-20", "tts-1", "tts-1-hd", "unknown-model"):
+            with self.subTest(model=model), \
+                    mock.patch.object(self.mod, "load_realtime_connector") as load_connector, \
+                    mock.patch.object(sys, "argv", [str(SCRIPT), str(self.source), "--model", model]), \
+                    contextlib.redirect_stderr(io.StringIO()) as error:
+                with self.assertRaises(SystemExit) as raised:
+                    self.mod.main()
+                self.assertEqual(raised.exception.code, 2)
+                self.assertIn(MODEL, error.getvalue())
+                load_connector.assert_not_called()
+                self.assert_preserved()
+
+    def test_voice_list_has_exactly_supported_ten_voices(self):
+        voices = {name for name, _ in self.mod.AVAILABLE_VOICES}
+        self.assertEqual(voices, {"alloy", "ash", "ballad", "coral", "echo", "sage",
+                                  "shimmer", "verse", "marin", "cedar"})
+        self.assertEqual(len(self.mod.AVAILABLE_VOICES), 10)
+
+    def test_speed_boundaries_are_sent_without_substitution(self):
+        for speed in (0.25, 1.5):
+            with self.subTest(speed=speed):
+                code, connection = self.run_cli(("--speed", str(speed)))
+                self.assertEqual(code, 0)
+                self.assertEqual(connection.sent[0]["session"]["audio"]["output"]["speed"], speed)
 
     def test_stalled_sends_and_close_are_shutdown_within_finite_limits(self):
         class BlockingSocket:
@@ -559,13 +572,15 @@ class RealtimeTest(unittest.TestCase):
 
 
 class OfflineProcessTest(unittest.TestCase):
-    def run_script(self, folder, args):
+    def run_script(self, folder, args, with_key=False):
         # -S blocks installed SDKs; the audit hook blocks even accidental network calls.
         runner = ("import sys,runpy; "
                   "sys.addaudithook(lambda event,args: (_ for _ in ()).throw(AssertionError('network disabled')) "
                   "if event in ('socket.connect','socket.getaddrinfo') else None); "
                   "sys.argv=sys.argv[1:]; runpy.run_path(sys.argv[0],run_name='__main__')")
-        env = {"PATH": os.defpath, "PYTHONIOENCODING": "utf-8", "OPENAI_API_KEY": "test-placeholder"}
+        env = {"PATH": os.defpath, "PYTHONIOENCODING": "utf-8"}
+        if with_key:
+            env["OPENAI_API_KEY"] = "test-placeholder"
         if "SYSTEMROOT" in os.environ:
             env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
         return subprocess.run([sys.executable, "-S", "-B", "-c", runner, str(SCRIPT), *args],
@@ -582,7 +597,7 @@ class OfflineProcessTest(unittest.TestCase):
 
     def test_missing_websockets_is_failure_without_request_or_new_file(self):
         with tempfile.TemporaryDirectory() as folder:
-            result = self.run_script(folder, ["Hello.", "--model", MODEL, "--format", "pcm"])
+            result = self.run_script(folder, ["Hello.", "--format", "pcm"], with_key=True)
             self.assertEqual(result.returncode, 1)
             self.assertIn("websockets", result.stdout)
             self.assertEqual(list(Path(folder).iterdir()), [])

@@ -12,7 +12,7 @@
 |------|------|---------|------|
 | `TTS/gemini_tts.py` | WAV (`_gemini_tts.wav`) | `GEMINI_API_KEY` | 3.8 기본(Lite 선택), 단일/다중 화자, 30개 프리셋 + 확장 음성, 인라인 보컬 태그 |
 | `TTS/elevenlabs_tts.py` | MP3 (`_elevenlabs.mp3`) | `ELEVENLABS_API_KEY` | 단일 화자 기본 v4(다중 화자는 서버 기본 모델), 단일+다중 통합 (자동 감지) |
-| `TTS/openai_tts.py` | MP3 (`_openai.mp3`) | `OPENAI_API_KEY` | 기존 기본 gpt-4o-mini-tts 유지. Realtime 명시 선택은 10개 음성·원문 전사 대조, 짧은 표본 실합성 확인 |
+| `TTS/openai_tts.py` | MP3 (`_openai.mp3`) | `OPENAI_API_KEY` | gpt-realtime-2.1-mini 기본, 10개 음성·원문 전사 대조·PCM 결합 |
 | `TTS/speechify_tts.py` | MP3 (`_speechify.mp3`) | `SPEECHIFY_API_KEY` | simba-3.5(기본, 한국어 포함 48개 언어), SSML 변환(속도·피치·볼륨·정지) |
 | `TTS/long_tts.py` | ElevenLabs MP3 / Gemini WAV | 위 둘 중 하나 | 긴 단일 화자 대본을 나눠 합성·병합하고 길이로 절단 검증. [긴 텍스트 분할](#긴-텍스트-분할) |
 
@@ -108,9 +108,7 @@ python TTS/elevenlabs_tts.py --list-tags
 
 ## OpenAI TTS
 
-기본 모델: **gpt-4o-mini-tts** (snapshot `gpt-4o-mini-tts-2025-12-15`). 13개 빌트인 음성, 공식 권장은 **marin / cedar**.
-
-`gpt-4o-mini-tts`의 두 dated snapshot과 `tts-1`·`tts-1-hd`는 **2027-01-06 종료 예정**이다. 기본 모델을 자동 전환하지 않는다. 공식 대체 모델 `gpt-realtime-2.1-mini`는 별도의 Realtime API 경로에서만 사용한다. [종료 공지](https://developers.openai.com/api/docs/deprecations)
+기본·유일 지원 모델은 **gpt-realtime-2.1-mini**다. 기본 음성은 **marin**이며 **cedar**도 선택할 수 있다. Realtime API로 청크를 합성하고 PCM을 결합해 음성 파일 하나로 저장한다.
 
 ```bash
 python TTS/openai_tts.py input.txt
@@ -118,18 +116,17 @@ python TTS/openai_tts.py "안녕하세요. 오늘 날씨가 참 좋네요."     
 python TTS/openai_tts.py input.txt --voice cedar --speed 1.1
 python TTS/openai_tts.py input.txt --instructions "Cheerful and warm"
 python TTS/openai_tts.py input.txt --format wav
-python TTS/openai_tts.py --list-voices                              # 13개
-python TTS/openai_tts.py --list-models                              # 기존 5행 + Realtime
-python TTS/openai_tts.py input.txt --model gpt-realtime-2.1-mini --voice cedar --format wav
+python TTS/openai_tts.py --list-voices                              # 10개
+python TTS/openai_tts.py --list-models
 ```
 
-옵션: `--voice <name>` / `--model <name>` / `--format mp3|opus|aac|flac|wav|pcm` / `--speed 0.25-4.0`(Realtime은 0.25~1.5) / `--instructions "<자연어 톤 지시>"` / `--chunk-size 3000`.
+옵션: `--voice <name>` / `--model gpt-realtime-2.1-mini` / `--format mp3|opus|aac|flac|wav|pcm` / `--speed 0.25~1.5` / `--instructions "<자연어 톤 지시>"` / `--chunk-size 3000`.
 
 무인자 실행은 현재 폴더의 `.txt` 우선, 다음 `.md` 중 첫 파일 하나를 고른다. 기존 파일은 UTF-8로 읽고, 존재하지 않는 경로는 직접 텍스트로 취급한다. 출력은 입력 파일 옆 `<stem>_openai.<format>`이며 직접 텍스트는 현재 폴더 `output_openai.<format>`이다.
 
-### OpenAI TTS 차별점: `--instructions` 자연어 스티어링
+### 자연어 톤 지시
 
-기존 `gpt-4o-mini-tts` 계열과 명시 선택 Realtime 경로에서 지원한다. `tts-1` / `tts-1-hd`는 경고 후 무시한다. 톤·악센트·감정·속도·속삭임을 자연어 한 줄로 지시:
+`--instructions`로 톤·악센트·감정·속도·속삭임을 요청한다.
 
 ```bash
 python TTS/openai_tts.py input.txt --instructions "Speak in a British accent, slowly, like teaching a child"
@@ -137,24 +134,15 @@ python TTS/openai_tts.py input.txt --instructions "Calm, professional narrator f
 python TTS/openai_tts.py input.txt --instructions "Whisper softly, intimate and warm"
 ```
 
-### OpenAI TTS 한도 (중요)
+### 처리와 검증
 
-| 항목 | 한도 |
-|------|------|
-| `input` 글자 | 4,096 chars |
-| 입력 토큰 (gpt-4o-mini-tts) | 2,000 |
-
-**기존 REST 경로는 입력이 `--chunk-size`(기본 3,000자, 최대 4,096)를 넘으면 문장 경계로 자동 분할해 바이트로 잇는다.** `wav`/`flac`은 조각마다 헤더가 붙으므로 입력을 chunk-size 이하로 유지한다. 압축 포맷의 바이트 연결도 플레이어별 완전 재생을 보장하지 않는다. `pcm`은 헤더 없는 원시 PCM이라 `.pcm` 파일로 저장된다. 3,000자 분할은 한국어 2,000토큰 이내를 보장하지 않는다.
-
-### Realtime 명시 선택
-
-Mac에서 짧은 영어(marin·1.0배속), 한국어(cedar·1.25배속·스타일 지시), 영어 2청크의 4응답이 완료됐다. 각 전사문과 원문이 일치하고 WAV 저장·전체 디코드를 통과했으며 같은 PCM의 여섯 포맷 변환도 확인했다. 실제 발화 정확성·음색·배속의 체감·긴 자료·Windows 실행은 이 결과로 확정하지 않는다. Realtime은 응답을 생성하는 API여서 원문 낭독 지시 준수가 보장되지 않는다. [Realtime 계약](https://developers.openai.com/api/reference/resources/realtime/client-events)
+Realtime은 응답을 생성하는 API여서 원문 낭독 지시 준수가 보장되지 않는다. 청크마다 모델 전사와 원문을 대조하며, 실제 음성은 별도 청취로 확인한다. [Realtime 계약](https://developers.openai.com/api/reference/resources/realtime/client-events)
 
 | 항목 | 동작 |
 |---|---|
-| 선택 | `--model gpt-realtime-2.1-mini`를 명시할 때만 사용. 자동 모델 전환·재시도·폴백 없음 |
+| 모델 | `gpt-realtime-2.1-mini`가 기본값이며 유일한 지원 모델. 다른 모델 값은 호출 전에 거부. 자동 재시도·폴백 없음 |
 | 음성 | `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`, `marin`, `cedar`. `fable`·`nova`·`onyx`는 호출 전에 거부, 대체 없음 |
-| 속도·청크 | `--speed 0.25~1.5`, `--chunk-size 1~4096`. 기본값은 각각 1.0·3000 |
+| 속도·청크 | `--speed 0.25~1.5`, `--chunk-size 1~4096`. 기본값은 각각 1.0·3000. 문자 분할 기준은 토큰·발화 완결성 보장이 아님 |
 | 스타일 | `--instructions`를 낭독 지시와 분리된 스타일 값으로 전달 |
 | 원문 보존 | 네트워크 전에 원문과 청크 재결합을 NFC·공백 제거 기준으로 비교. 분할 손실이 있으면 문자 슬라이스로 재분할 |
 | 전사 대조 | 청크마다 완료된 오디오 전사와 원문을 NFC·공백 제거 기준으로 비교. 숫자·문장부호·단어 차이도 실패. 정상 발화도 표기 차이로 거부될 수 있음 |
@@ -165,13 +153,13 @@ Mac에서 짧은 영어(marin·1.0배속), 한국어(cedar·1.25배속·스타�
 | 대기 한도 | 연결·세션 대기 20초, 세션 설정 송신·확인 합계 20초, 청크의 생성 요청 송신·수신 합계 180초. 인코더 확인 20초, 변환·디코드 각각 180초, 전체 55분. 오래 걸리면 더 작은 chunk-size를 명시해 다시 실행 |
 | 중단 | 활성 response_id로 취소를 최선 노력 요청하고 연결 종료. 취소 송신과 연결 종료에는 각각 5초 watchdog을 적용. 송신·종료가 정체되면 소켓 shutdown으로 깨우며, watchdog 발동은 실패로 처리. 취소 확인 없이 비용 중단을 보장하지 않음. 재실행은 다시 과금될 수 있음 |
 
-강제 종료·전원 차단에서는 임시 파일이 남을 수 있다. 기존 REST 경로의 키 부재·HTTP 오류 exit 0 계약은 유지되므로, 이 경로에서는 종료 코드뿐 아니라 출력 갱신도 확인한다. Realtime 경로의 help·목록은 합성 성공 예외로 exit 0이며 키·SDK가 없어도 동작한다.
+강제 종료·전원 차단에서는 임시 파일이 남을 수 있다. 합성·입력·키·의존성 오류는 exit 1이다. 지원하지 않는 모델 등 argparse 사용 오류는 exit 2다. help·목록은 exit 0이며 키·SDK가 없어도 동작한다.
 
-한국어 본문도 지원하지만 음성 자체는 영어 최적화다. 한국어 발음 자연스러움은 ElevenLabs Yuna/DoHyeon이 더 우수. OpenAI는 영어 + `--instructions` 스티어링 워크플로우가 강점.
+Mac의 짧은 영어·한국어 표본은 실합성과 사용자 청취에서 큰 문제가 없었다. 영어 2청크의 전사·PCM 결합과 여섯 포맷 변환도 확인했다. 긴 자료·다른 음성·극단 배속·Windows·2청크 연결의 실제 청취는 이 결과로 확정하지 않는다.
 
 **사용 정책**: AI 합성 음성임을 최종 사용자에게 명시할 의무 (스크립트 종료 시 안내 출력).
 
-출처: developers.openai.com/api/docs/guides/text-to-speech | 미리듣기 https://openai.fm
+출처: [Realtime API](https://developers.openai.com/api/docs/guides/realtime)
 
 ## Speechify TTS
 

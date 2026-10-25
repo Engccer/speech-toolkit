@@ -6,12 +6,12 @@
 
 ## 스크립트 추가 시 공통 규약
 
-새 TTS·STT 스크립트를 추가할 때는 기존 11개 스크립트의 규약을 그대로 따른다:
+새 TTS·STT 스크립트를 추가할 때는 다음 규약을 그대로 따른다:
 
 - 인자 없이 실행 시 현재 폴더에서 지원 확장자를 자동 탐색한다.
 - 출력 파일명은 `<입력파일명>_<service>.<확장자>` 형식이다.
 - API 키는 반드시 환경변수로만 읽는다(`os.environ`). 하드코딩 금지.
-- 키가 없으면 한국어 오류 메시지를 출력한다. 종료 방식은 스크립트마다 다르다: elevenlabs_tts·elevenlabs_stt·daglo_stt·speechify_tts·mistral_stt는 `sys.exit(1)`로 비정상 종료하고, 나머지 6개는 메시지 출력 후 조용히 반환한다(exit code 0).
+- 키가 없으면 한국어 오류 메시지를 출력한다. 종료 방식은 스크립트마다 다르다: elevenlabs_tts·elevenlabs_stt·daglo_stt·speechify_tts·mistral_stt·openai_tts는 비정상 종료 코드 1을 반환하고, 다른 스크립트 중에는 메시지 출력 후 조용히 반환하는 것도 있다(exit code 0).
 - `--help`(또는 `--list-voices`류 옵션)는 API 키 없이도 동작해야 한다.
 
 Mistral STT는 입력·키·SDK·API·빈 결과·저장 실패를 비정상 종료로 전달한다. 도움말은 키·SDK 없이 동작한다. 출력은 임시 파일 쓰기를 마친 후 교체하며 실패 시 이전 파일을 보존하므로, 자동화 호출자는 종료 코드 0과 출력 내용을 함께 확인한다.
