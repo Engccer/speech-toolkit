@@ -233,7 +233,7 @@ def load_realtime_connector():
     try:
         from websockets.sync.client import connect
     except ImportError:
-        raise RealtimeError("Realtime에는 websockets>=16.0 패키지가 필요합니다.") from None
+        raise RealtimeError("Realtime에는 websockets>=15.0.1 패키지가 필요합니다.") from None
     return connect
 
 
