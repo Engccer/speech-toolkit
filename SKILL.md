@@ -3,7 +3,7 @@ name: speech-toolkit
 description: "텍스트→음성(TTS)과 음성→텍스트(STT) 변환 CLI 스크립트 모음. TTS는 Gemini/ElevenLabs/OpenAI/Speechify 4종, STT는 Daglo/Deepgram/ElevenLabs/Gemini/Gemini 3.5 Transcribe/Meta Muse/Mistral 7종. 다음 요청에 사용: 텍스트를 음성으로 변환, 나레이션·오디오북 음원 생성, 음성·영상 파일 전사, 회의 녹음 텍스트 변환, TTS, STT, transcription. Use for text-to-speech (TTS) and speech-to-text (STT): generate narration audio from text or transcribe audio/video files to text with multiple AI providers."
 license: MIT
 metadata:
-  version: "1.3.2"
+  version: "1.4.0"
 ---
 
 # speech-toolkit
@@ -14,6 +14,7 @@ metadata:
 - 출력 파일명은 `<입력>_<service>.<ext>` 형식이다(예: `meeting_deepgram.txt`, `report_gemini_tts.wav`).
 - API 키는 환경변수로만 받는다(하드코딩 금지).
 - 성공은 출력 파일이 새로 생겼거나 갱신됐는지로 판정한다. 여러 스크립트가 키 부재·API 오류에도 종료 코드 0으로 끝난다.
+- Mistral STT는 새 전사문 저장 성공만 종료 코드 0이다. 실패 시 이전 출력은 보존하므로 파일 존재만으로 성공을 판단하지 않는다. `--help`·`-h`는 키·SDK 없이 확인할 수 있다.
 - 의존성은 `pip install -r requirements.txt`. `muse_stt.py`는 ffmpeg가 늘, `gemini_transcribe_stt.py`는 상한을 넘는 파일을 나눌 때 ffmpeg/ffprobe가 필요하다.
 
 ## 라우팅

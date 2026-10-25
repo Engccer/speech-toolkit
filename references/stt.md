@@ -7,6 +7,7 @@
 - [키텀 파일](#키텀-파일)
 - [선택 가이드](#선택-가이드)
 - [Deepgram 옵션](#deepgram-옵션)
+- [Mistral 실행과 종료 코드](#mistral-실행과-종료-코드)
 - [Gemini 3.5 Transcribe 옵션](#gemini-35-transcribe-옵션)
 - [Meta Muse Voice Transcribe 옵션](#meta-muse-voice-transcribe-옵션)
 - [Daglo ngrok 설정](#daglo-ngrok-설정)
@@ -85,6 +86,14 @@ python STT/daglo_stt.py recording.m4a             # ngrok 사전 설정 필요
 ## Deepgram 옵션
 
 `--lang <코드>`(기본 `ko`) / `--multi`(language=multi, 한·영 코드 스위칭 녹음용, `--lang`보다 우선) / `--timestamps`(`_deepgram_ts.txt` 추가 저장). 키텀 파일을 자동으로 읽는다.
+
+## Mistral 실행과 종료 코드
+
+`python STT/mistral_stt.py [입력파일]`은 파일을 생략하면 MP3, M4A, WAV, FLAC, OGG 순으로 처음 찾은 파일 하나를 처리한다. `--help`·`-h`는 API 키와 SDK 없이 종료 코드 0으로 도움말을 표시한다.
+
+전사는 비어 있지 않은 결과를 UTF-8 `<입력파일명>_mistral.txt`로 저장했을 때만 종료 코드 0이다. 잘못된 인자는 2, 입력·키·SDK·API·빈 결과·저장 오류는 1이다. 입력 파일이 비었거나 1 GiB를 초과하면 API 요청 전에 거부한다. 서비스의 길이 제한은 서버 응답으로 확인하며, 거부 응답도 실패로 전달한다.
+
+새 출력은 같은 폴더의 임시 파일에 모두 쓴 다음 교체한다. 실패하면 이전 파일을 보존하므로 자동화에서는 종료 코드와 새 출력 내용을 함께 확인한다. 모델은 `voxtral-mini-latest`이며 `diarize=True`, `timestamp_granularities=["segment"]`로 요청한다. 화자는 `[화자 N]`으로 표기한다.
 
 ## Gemini 3.5 Transcribe 옵션
 

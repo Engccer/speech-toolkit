@@ -20,21 +20,12 @@ Mistral STT (Speech-to-Text) 스크립트 - Voxtral Transcribe 2
 
 import os
 import sys
+import tempfile
 import traceback
 
 
 def main():
-    try:
-        try:
-            from mistralai import Mistral  # mistralai <= 2.3.x
-        except ImportError:
-            from mistralai.client import Mistral  # mistralai >= 2.4.0
-    except ImportError as e:
-        print("오류: mistralai 패키지를 찾을 수 없습니다.")
-        print("설치 명령: pip install mistralai")
-        print(f"상세: {e}")
-        return
-
+    """반환값은 종료 코드다. 새 전사문 저장에 성공했을 때만 0이다."""
     # 명령줄 인수 파싱
     import argparse
 
@@ -47,16 +38,6 @@ def main():
         help="입력 오디오/비디오 파일 경로 (생략 시 현재 폴더에서 자동 탐색)",
     )
     args = parser.parse_args()
-
-    # API 키 설정
-    try:
-        api_key = os.environ["MISTRAL_API_KEY"]
-    except KeyError:
-        print("오류: MISTRAL_API_KEY 환경 변수가 설정되지 않았습니다.")
-        print('설정 명령: export MISTRAL_API_KEY="your-api-key"  (Windows: setx MISTRAL_API_KEY "your-api-key")')
-        return
-
-    client = Mistral(api_key=api_key)
 
     # 지원 확장자
     SUPPORTED_EXTENSIONS = [".mp3", ".m4a", ".wav", ".flac", ".ogg"]
@@ -73,6 +54,7 @@ def main():
         import glob
         for ext in SUPPORTED_EXTENSIONS:
             files = glob.glob(f"*{ext}")
+            files = [path for path in files if os.path.isfile(path)]
             if files:
                 return files[0]
         return None
@@ -122,7 +104,7 @@ def main():
         return ""
 
     # 명령줄 인수로 받은 파일 경로 처리
-    if args.input_file:
+    if args.input_file is not None:
         input_file = args.input_file
         print(f"입력 경로: {input_file}")
 
@@ -130,17 +112,17 @@ def main():
         if ext not in SUPPORTED_EXTENSIONS:
             print(f"오류: 지원하지 않는 파일 형식입니다: {ext}")
             print(f"지원 형식: {', '.join(SUPPORTED_EXTENSIONS)}")
-            return
-        if not os.path.exists(input_file):
+            return 1
+        if not os.path.isfile(input_file):
             print(f"오류: 파일을 찾을 수 없습니다: {input_file}")
-            return
+            return 1
     else:
         # 인수 없으면 현재 디렉토리에서 입력 파일 자동 탐색
         input_file = find_input_file()
         if not input_file:
             print("오류: 입력 파일을 찾을 수 없습니다.")
             print(f"지원 형식: {', '.join(SUPPORTED_EXTENSIONS)}")
-            return
+            return 1
 
     print(f"입력 파일: {input_file}")
 
@@ -149,15 +131,35 @@ def main():
     file_size_mb = file_size / (1024 * 1024)
     print(f"파일 크기: {file_size_mb:.1f} MB")
 
+    if file_size == 0:
+        print("오류: 입력 파일이 비어 있습니다.")
+        return 1
     if file_size_mb > 1024:
         print("오류: Mistral Voxtral Transcribe는 최대 1GB 파일까지 지원합니다.")
-        return
+        return 1
+
+    api_key = os.environ.get("MISTRAL_API_KEY", "").strip()
+    if not api_key:
+        print("오류: MISTRAL_API_KEY 환경 변수가 설정되지 않았습니다.")
+        print('설정 명령: export MISTRAL_API_KEY="your-api-key"  (Windows: setx MISTRAL_API_KEY "your-api-key")')
+        return 1
+
+    try:
+        try:
+            from mistralai import Mistral  # mistralai <= 2.3.x
+        except ImportError:
+            from mistralai.client import Mistral  # mistralai >= 2.4.0
+    except ImportError as e:
+        print("오류: mistralai 패키지를 찾을 수 없습니다.")
+        print("설치 명령: pip install mistralai")
+        print(f"상세: {e}")
+        return 1
 
     print("전사 중... (모델: voxtral-mini-latest)")
 
     try:
         # Mistral API 호출
-        with open(input_file, "rb") as f:
+        with Mistral(api_key=api_key) as client, open(input_file, "rb") as f:
             response = client.audio.transcriptions.complete(
                 model="voxtral-mini-latest",
                 file={
@@ -171,18 +173,32 @@ def main():
         # 결과 포맷팅
         transcript = format_transcript_with_speakers(response)
 
-        if not transcript:
+        if not transcript or not transcript.strip():
             print("오류: 전사 결과가 비어있습니다.")
-            return
+            print("이번 실행의 출력을 저장하지 않았습니다. 기존 파일을 이번 결과로 사용하지 마세요.")
+            return 1
 
         # 결과 저장
         output_file = get_output_filename(input_file)
 
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(transcript)
+        # 같은 폴더에서 쓰기를 마친 뒤 교체한다. 실패하면 기존 출력은 보존한다.
+        temp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=os.path.dirname(output_file),
+                prefix=".mistral-", suffix=".tmp", delete=False,
+            ) as f:
+                temp_path = f.name
+                f.write(transcript)
+            os.replace(temp_path, output_file)
+            temp_path = None
+        finally:
+            if temp_path is not None:
+                os.unlink(temp_path)
 
         print(f"\n전사 완료! {len(transcript)}글자가 저장되었습니다.")
         print(f"출력 파일: {output_file}")
+        return 0
 
     except Exception as e:
         error_msg = str(e)
@@ -191,12 +207,15 @@ def main():
         elif "rate" in error_msg.lower() and "limit" in error_msg.lower():
             print("오류: API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.")
         else:
-            raise
+            print(f"오류 발생: {e}")
+        print("이번 실행의 출력을 저장하지 않았습니다. 기존 파일을 이번 결과로 사용하지 마세요.")
+        return 1
 
 
 if __name__ == "__main__":
+    exit_code = 1
     try:
-        main()
+        exit_code = main()
     except Exception as e:
         print(f"\n오류 발생: {e}")
         print("\n상세 정보:")
@@ -204,7 +223,8 @@ if __name__ == "__main__":
 
     # 배치 모드가 아닐 때만 대기
     try:
-        if sys.stdin.isatty():
+        if sys.stdin is not None and sys.stdin.isatty():
             input("\nEnter를 눌러 종료...")
     except EOFError:
         pass
+    sys.exit(exit_code)
