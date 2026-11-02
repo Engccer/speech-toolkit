@@ -6,7 +6,7 @@
 <!-- SYNC-BODY-START: 이 줄 아래 본문은 CLAUDE.md 와 100% 동일하게 자동 생성됨 -->
 # speech-toolkit
 
-텍스트↔음성 변환 CLI 스크립트 모음이다. TTS 4종(Gemini, ElevenLabs, OpenAI, Speechify)과 STT 7종(Daglo, Deepgram, ElevenLabs, Gemini, Gemini 3.5 Transcribe, Meta Muse, Mistral)을 각각 독립 실행형 스크립트로 제공하며, 코딩 에이전트 스킬로도 단독 CLI로도 쓸 수 있다.
+텍스트↔음성 변환 CLI 스크립트 모음이다. TTS 5종(Gemini, ElevenLabs, OpenAI, Speechify, Azure)과 STT 7종(Daglo, Deepgram, ElevenLabs, Gemini, Gemini 3.5 Transcribe, Meta Muse, Mistral)을 각각 독립 실행형 스크립트로 제공하며, 코딩 에이전트 스킬로도 단독 CLI로도 쓸 수 있다.
 
 이 저장소는 공개 저장소이므로 개인 경로·실키·개인 스킬 결합을 커밋하지 않는다. PR·이슈·커밋 어디에도 로컬 절대경로(`C:\Users\...`, `/Users/...`), 실제 API 키, 다른 저장소의 비공개 스킬 이름을 남기지 말 것.
 
@@ -17,8 +17,8 @@
 - 인자 없이 실행 시 현재 폴더에서 지원 확장자를 자동 탐색한다.
 - 출력 파일명은 `<입력파일명>_<service>.<확장자>` 형식이다.
 - API 키는 반드시 환경변수로만 읽는다(`os.environ`). 하드코딩 금지.
-- 키가 없으면 한국어 오류 메시지를 출력한다. 종료 방식은 스크립트마다 다르다: elevenlabs_tts·elevenlabs_stt·daglo_stt·speechify_tts·mistral_stt·openai_tts는 비정상 종료 코드 1을 반환하고, 다른 스크립트 중에는 메시지 출력 후 조용히 반환하는 것도 있다(exit code 0).
-- `--help`(또는 `--list-voices`류 옵션)는 API 키 없이도 동작해야 한다.
+- 키가 없으면 한국어 오류 메시지를 출력한다. 종료 방식은 스크립트마다 다르다: elevenlabs_tts·elevenlabs_stt·daglo_stt·speechify_tts·mistral_stt·openai_tts·azure_tts는 비정상 종료 코드 1을 반환하고, 다른 스크립트 중에는 메시지 출력 후 조용히 반환하는 것도 있다(exit code 0).
+- `--help`(또는 `--list-voices`류 옵션)는 API 키 없이도 동작해야 한다. 예외: azure_tts의 `--list-voices`는 음성 목록을 API로만 받으므로 키가 필요하다. azure_tts는 Windows에서 프로세스 환경에 키가 없을 때 사용자 환경 변수(레지스트리)도 읽는다.
 
 Mistral STT는 입력·키·SDK·API·빈 결과·저장 실패를 비정상 종료로 전달한다. 도움말은 키·SDK 없이 동작한다. 출력은 임시 파일 쓰기를 마친 후 교체하며 실패 시 이전 파일을 보존하므로, 자동화 호출자는 종료 코드 0과 출력 내용을 함께 확인한다.
 
@@ -30,3 +30,4 @@ Mistral STT는 입력·키·SDK·API·빈 결과·저장 실패를 비정상 종
 
 - `TTS/elevenlabs_tts.py` → abridge( https://github.com/Engccer/abridge )의 `scripts/elevenlabs_tts.py`, agent-cli-tts-summary( https://github.com/Engccer/agent-cli-tts-summary )의 `assets/tts/elevenlabs_tts.py`
 - `TTS/gemini_tts.py` → agent-cli-tts-summary의 `assets/tts/gemini_tts.py`
+- `TTS/azure_tts.py` → agent-cli-tts-summary의 `assets/tts/azure_tts.py`

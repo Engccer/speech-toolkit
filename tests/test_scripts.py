@@ -41,6 +41,11 @@ class HelpWithoutKeyTest(unittest.TestCase):
                 stdin=subprocess.DEVNULL,
             )
 
+    def test_azure_help_without_key(self):
+        result = self.run_help("TTS/azure_tts.py")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("usage:", result.stdout)
+
     def test_deepgram_help_without_key_or_sdk(self):
         result = self.run_help("STT/deepgram_stt.py")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -107,10 +112,92 @@ class LongTtsTest(unittest.TestCase):
         squash = lambda s: "".join(s.split())
         self.assertEqual(squash("".join(chunks)), squash(text))
 
+    def test_azure_rate_scales_with_speed(self):
+        cps, chunk = self.mod.resolve_rate("azure", "neural", 2.0)
+        self.assertAlmostEqual(cps, 7.15 * 2.0)
+        # 요청당 오디오 10분(600초) 한도보다 넉넉히 짧아야 한다
+        self.assertLessEqual(chunk, 300)
+
+    def test_azure_cmd_passes_tempo_and_language_without_model(self):
+        cmd = self.mod.chunk_cmd("azure", "neural", "ko-KR-HyunsuNeural", 2.0, "c.txt")
+        self.assertNotIn("--model", cmd)
+        self.assertEqual(cmd[cmd.index("--tempo") + 1], "2.0")
+        self.assertEqual(cmd[cmd.index("--language-code") + 1], "ko-KR")
+
+    def test_azure_out_of_range_speed_is_rejected_before_any_call(self):
+        with tempfile.TemporaryDirectory() as d:
+            script = os.path.join(d, "s.txt")
+            with open(script, "w", encoding="utf-8") as fh:
+                fh.write("안녕하세요.")
+            env = dict(os.environ, PYTHONIOENCODING="utf-8", PATH="")
+            run = lambda *extra: subprocess.run(
+                [sys.executable, os.path.join(ROOT, "TTS/long_tts.py"), script,
+                 "--provider", "azure", *extra],
+                env=env, capture_output=True, text=True, encoding="utf-8", timeout=30,
+                stdin=subprocess.DEVNULL)
+            fast = run("--speed", "3.0")
+            english = run("--voice", "en-US-AndrewNeural")
+        # PATH를 비워도(ffmpeg 없음) 인자 검사가 먼저 걸려야 한다
+        self.assertNotEqual(fast.returncode, 0)
+        self.assertIn("0.5~2.0", fast.stderr)
+        self.assertNotEqual(english.returncode, 0)
+        self.assertIn("--chars-per-sec", english.stderr)
+
     def test_short_tail_is_not_truncation(self):
         self.assertFalse(self.mod.is_truncated(5.0, 3.0))
         self.assertTrue(self.mod.is_truncated(300.0, 200.0))
         self.assertFalse(self.mod.is_truncated(300.0, 270.0))
+
+
+class AzureTtsTest(unittest.TestCase):
+    def setUp(self):
+        self.mod = load("TTS/azure_tts.py")
+
+    def test_retry_after_follows_header_and_caps(self):
+        self.assertEqual(self.mod._retry_after("7", 0), 7.0)
+        self.assertEqual(self.mod._retry_after("999", 0), self.mod.MAX_RETRY_WAIT)
+        self.assertEqual(self.mod._retry_after(None, 0), 5.0)
+        self.assertEqual(self.mod._retry_after("Wed, 21 Oct 2026 07:28:00 GMT", 2), 20.0)
+
+    def test_429_retries_only_when_asked(self):
+        import urllib.error
+
+        def busy(*a, **k):
+            raise urllib.error.HTTPError("u", 429, "busy", {"Retry-After": "1"}, io.BytesIO(b""))
+
+        with mock.patch.object(self.mod.urllib.request, "urlopen", side_effect=busy) as op, \
+                mock.patch.object(self.mod.time, "sleep") as sleep:
+            with self.assertRaises(SystemExit):
+                self.mod._request("https://x", "k")
+            self.assertEqual(op.call_count, 1)
+            self.assertEqual(sleep.call_count, 0)
+            with self.assertRaises(SystemExit):
+                self.mod._request("https://x", "k", retries=3)
+            self.assertEqual(op.call_count, 1 + 4)
+            self.assertEqual(sleep.call_count, 3)
+
+    def test_env_prefers_process_environment(self):
+        with mock.patch.dict(os.environ, {"AZURE_SPEECH_REGION": " koreacentral "}):
+            self.assertEqual(self.mod._env("AZURE_SPEECH_REGION"), "koreacentral")
+
+    @unittest.skipUnless(os.name == "nt", "Windows 레지스트리 폴백")
+    def test_env_falls_back_to_user_registry(self):
+        fake = mock.MagicMock()
+        fake.QueryValueEx.return_value = ("eastus", 1)
+        with mock.patch.dict(os.environ, {}, clear=True), \
+                mock.patch.dict(sys.modules, {"winreg": fake}):
+            self.assertEqual(self.mod._env("AZURE_SPEECH_REGION"), "eastus")
+
+    def test_tempo_is_clamped_to_azure_range(self):
+        self.assertEqual(self.mod.tempo_to_rate("2.0"), "+100%")
+        self.assertEqual(self.mod.tempo_to_rate("5"), "+100%")
+        self.assertEqual(self.mod.tempo_to_rate("1.0"), "default")
+        self.assertEqual(self.mod.tempo_to_rate(None), "default")
+
+    def test_ssml_escapes_text(self):
+        ssml = self.mod.build_ssml("A & B <c>", "ko-KR-HyunsuNeural", "ko-KR", "+100%")
+        self.assertIn("A &amp; B &lt;c&gt;", ssml)
+        self.assertIn('rate="+100%"', ssml)
 
 
 class OpenAIOutputNameTest(unittest.TestCase):

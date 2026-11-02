@@ -8,6 +8,8 @@
   - eleven_v4: 822초 단일 요청에서도 끝은 잘리지 않았으나, 약 5분(293~297초)과
     약 10분(620초) 지점에서 문장 중간 100~150자를 건너뛰었다(2026-09 실측).
   - gemini-3.8-flash-tts: 출력 16,384토큰(약 655초)을 넘으면 잘린다(공식 문서).
+  - Azure AI Speech: 요청당 오디오 10분이 공식 한도다. 속도는 SSML prosody rate로
+    합성 단계에서 바뀌므로 배속을 올리면 같은 길이에 더 많은 글자가 들어간다.
   그래서 문자 수가 아니라 예상 오디오 길이로 문장 경계에서 나눠 합성하고, 무손실로
   이은 뒤 실제 길이를 예상 길이와 대조해 절단이 보이면 실패로 끝낸다.
 
@@ -18,6 +20,7 @@ usage:
   python long_tts.py script.txt
   python long_tts.py script.txt --model eleven_v3 --speed 1.2
   python long_tts.py script.txt --provider gemini
+  python long_tts.py script.txt --provider azure --voice ko-KR-HyunsuNeural --speed 2.0
   python long_tts.py script.txt --compact-copy --tempo 1.5 --target-mb 1.8
 """
 import argparse
@@ -37,13 +40,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 #     speed를 올려도 빨라지지 않아 속도 배수를 곱하지 않는다(2026-09-30).
 #     단일 요청은 약 293초 지점부터 중간 누락이 나서 조각을 240초로 잡는다.
 #   gemini-3.8-flash-tts 8.3: Puck, 1,279자 / 142초, 2,611자 / 328.7초 (2026-09-27)
+#   azure neural 7.15: ko-KR-HyunsuNeural, 1,464자가 speed 1.0/1.5/2.0에서 204.7/136.4/102.3초.
+#     속도에 정비례한다. 2.0으로 41,242자를 1,500자 조각 33개(조각당 약 110초)로 나눴을 때
+#     13.7~13.8자/초로 일정했다(2026-11-03). 기본 300초 조각은 10분 한도의 절반이라 여유를
+#     두었으나 그 길이로 실측하지는 않았다. 한국어 값이라 ko- 이외 음성은 --chars-per-sec가 필요하다.
 MODELS = {
     ('elevenlabs', 'eleven_v3'): {'chars_per_sec': 4.35, 'speed_scales': True, 'chunk_seconds': 300},
     ('elevenlabs', 'eleven_v4'): {'chars_per_sec': 7.1, 'speed_scales': False, 'chunk_seconds': 240},
     ('gemini', 'gemini-3.8-flash-tts'): {'chars_per_sec': 8.3, 'speed_scales': False,
                                          'chunk_seconds': 300},
+    ('azure', 'neural'): {'chars_per_sec': 7.15, 'speed_scales': True, 'chunk_seconds': 300},
 }
-DEFAULT_MODEL = {'elevenlabs': 'eleven_v4', 'gemini': 'gemini-3.8-flash-tts'}
+DEFAULT_MODEL = {'elevenlabs': 'eleven_v4', 'gemini': 'gemini-3.8-flash-tts', 'azure': 'neural'}
+DEFAULT_SPEED = {'elevenlabs': 1.2, 'gemini': 1.0, 'azure': 1.0}
+# azure_tts.py는 이 범위 밖의 배속을 말없이 잘라 쓰므로, 그대로 두면 예상 길이가 틀려
+# 정상 오디오를 절단으로 오판한다. 호출 전에 거부한다.
+AZURE_SPEED_RANGE = (0.5, 2.0)
 # 표에 없는 모델은 상한을 모르므로 보수적으로 자른다.
 FALLBACK_CHUNK_SECONDS = 240
 
@@ -51,6 +63,8 @@ PROVIDERS = {
     'elevenlabs': {'script': 'elevenlabs_tts.py', 'suffix': '_elevenlabs', 'ext': 'mp3',
                    'voice': 'Yuna'},
     'gemini': {'script': 'gemini_tts.py', 'suffix': '_gemini_tts', 'ext': 'wav', 'voice': 'Puck'},
+    'azure': {'script': 'azure_tts.py', 'suffix': '_azure_tts', 'ext': 'wav',
+              'voice': 'ko-KR-HyunsuNeural'},
 }
 
 # 실제 길이가 예상 대비 이 비율 미만이고, 부족분이 이 초를 넘으면 절단으로 판정한다.
@@ -71,8 +85,8 @@ def resolve_rate(provider, model, speed, cps_override=None, chunk_override=None)
                  f'(알려진 모델: {", ".join(m for _, m in MODELS)}).')
     base_cps = cps_override or known['chars_per_sec']
     chunk_seconds = chunk_override or (known['chunk_seconds'] if known else FALLBACK_CHUNK_SECONDS)
-    # 표에 없는 모델은 speed가 속도를 바꾼다고 가정한다(elevenlabs만 speed를 받는다).
-    speed_scales = known['speed_scales'] if known else provider == 'elevenlabs'
+    # 표에 없는 모델은 speed가 속도를 바꾼다고 가정한다(gemini만 speed를 받지 않는다).
+    speed_scales = known['speed_scales'] if known else provider != 'gemini'
     return base_cps * (speed if speed_scales else 1.0), chunk_seconds
 
 
@@ -117,20 +131,29 @@ def is_truncated(expected_sec, actual_sec):
             and expected_sec - actual_sec > MAX_SHORTFALL_SECONDS)
 
 
+def chunk_cmd(provider, model, voice, speed, src):
+    script = os.path.join(HERE, PROVIDERS[provider]['script'])
+    if provider == 'azure':
+        # Azure는 모델 인자가 없고 음성 이름 앞부분이 곧 언어다(ko-KR-HyunsuNeural → ko-KR).
+        language = '-'.join(voice.split('-')[:2])
+        return [sys.executable, script, src, '--voice', voice,
+                '--language-code', language, '--tempo', str(speed), '--retries', '3']
+    # --model은 항상 명시한다. 하위 스크립트의 기본 모델이 바뀌면 MODELS의 상수와 어긋난다.
+    # elevenlabs는 --voice/--speed도 명시해야 한다. 빠지면 대화형 선택으로 들어가
+    # TTY 없는 셸에서 EOFError로 죽는다.
+    cmd = [sys.executable, script, src, '--voice', voice, '--model', model]
+    if provider == 'elevenlabs':
+        cmd += ['--single', '--speed', str(speed)]
+    return cmd
+
+
 def synth_chunk(provider, model, voice, speed, chunk_text, workdir, idx):
     src = os.path.join(workdir, f'chunk_{idx}.txt')
     with open(src, 'w', encoding='utf-8') as fh:
         fh.write(chunk_text)
 
     meta = PROVIDERS[provider]
-    # --model은 항상 명시한다. 하위 스크립트의 기본 모델이 바뀌면 MODELS의 상수와 어긋난다.
-    # elevenlabs는 --voice/--speed도 명시해야 한다. 빠지면 대화형 선택으로 들어가
-    # TTY 없는 셸에서 EOFError로 죽는다.
-    cmd = [sys.executable, os.path.join(HERE, meta['script']), src,
-           '--voice', voice, '--model', model]
-    if provider == 'elevenlabs':
-        cmd += ['--single', '--speed', str(speed)]
-
+    cmd = chunk_cmd(provider, model, voice, speed, src)
     proc = subprocess.run(cmd, capture_output=True, cwd=workdir, stdin=subprocess.DEVNULL)
     out = os.path.join(workdir, f'chunk_{idx}{meta["suffix"]}.{meta["ext"]}')
     if not os.path.isfile(out):
@@ -167,10 +190,11 @@ def main():
     ap = argparse.ArgumentParser(description='긴 대본 TTS 빌더 (분할 + 병합 + 길이 검증)')
     ap.add_argument('script', help='대본 .txt 경로')
     ap.add_argument('--provider', choices=list(PROVIDERS), default='elevenlabs')
-    ap.add_argument('--model', help='기본: elevenlabs=eleven_v4, gemini=gemini-3.8-flash-tts')
-    ap.add_argument('--voice', help='기본: elevenlabs=Yuna, gemini=Puck')
-    ap.add_argument('--speed', type=float, default=1.2,
-                    help='elevenlabs 전용, 0.7-1.2. 기본 1.2(elevenlabs_tts.py와 같음)')
+    ap.add_argument('--model', help='기본: elevenlabs=eleven_v4, gemini=gemini-3.8-flash-tts, '
+                                    'azure=neural')
+    ap.add_argument('--voice', help='기본: elevenlabs=Yuna, gemini=Puck, azure=ko-KR-HyunsuNeural')
+    ap.add_argument('--speed', type=float,
+                    help='elevenlabs 0.7-1.2(기본 1.2), azure 0.5-2.0(기본 1.0). gemini는 무시')
     ap.add_argument('--chars-per-sec', type=float,
                     help='speed 1.0 기준 발화 속도(자/초). 표에 없는 모델·다른 언어에서 지정')
     ap.add_argument('--chunk-seconds', type=float, help='조각당 목표 길이(초). 기본은 모델별 값')
@@ -180,14 +204,24 @@ def main():
     ap.add_argument('--target-mb', type=float, default=1.8, help='압축 사본 목표 크기(MB). 기본 1.8')
     args = ap.parse_args()
 
-    if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
-        sys.exit('ffmpeg/ffprobe가 PATH에 없습니다.')
-
     meta = PROVIDERS[args.provider]
     model = args.model or DEFAULT_MODEL[args.provider]
+    voice = args.voice or meta['voice']
+    if args.speed is None:
+        args.speed = DEFAULT_SPEED[args.provider]
+    if args.provider == 'azure':
+        lo, hi = AZURE_SPEED_RANGE
+        if not lo <= args.speed <= hi:
+            sys.exit(f'azure의 --speed는 {lo}~{hi}입니다. 더 빠르게 들으려면 --compact-copy --tempo를 쓰세요.')
+        # 발화 속도 상수는 한국어 값이다. 다른 언어에 쓰면 정상 오디오를 절단으로 오판한다.
+        if not voice.startswith('ko-') and args.chars_per_sec is None:
+            sys.exit(f'{voice}는 한국어 음성이 아니라 발화 속도를 모릅니다. '
+                     f'짧은 표본으로 재서 --chars-per-sec(1.0배속 기준 자/초)로 주세요.')
+
+    if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
+        sys.exit('ffmpeg/ffprobe가 PATH에 없습니다.')
     chars_per_sec, chunk_seconds = resolve_rate(
         args.provider, model, args.speed, args.chars_per_sec, args.chunk_seconds)
-    voice = args.voice or meta['voice']
 
     script_path = os.path.abspath(args.script)
     with open(script_path, encoding='utf-8') as fh:

@@ -6,6 +6,7 @@
 - [ElevenLabs TTS](#elevenlabs-tts)
 - [OpenAI TTS](#openai-tts)
 - [Speechify TTS](#speechify-tts)
+- [Azure TTS](#azure-tts)
 - [긴 텍스트 분할](#긴-텍스트-분할)
 
 | 도구 | 출력 | 환경변수 | 비고 |
@@ -14,7 +15,8 @@
 | `TTS/elevenlabs_tts.py` | MP3 (`_elevenlabs.mp3`) | `ELEVENLABS_API_KEY` | 단일 화자 기본 v4(다중 화자는 서버 기본 모델), 단일+다중 통합 (자동 감지) |
 | `TTS/openai_tts.py` | MP3 (`_openai.mp3`) | `OPENAI_API_KEY` | gpt-realtime-2.1-mini 기본, 10개 음성·원문 전사 대조·PCM 결합 |
 | `TTS/speechify_tts.py` | MP3 (`_speechify.mp3`) | `SPEECHIFY_API_KEY` | simba-3.5(기본, 한국어 포함 48개 언어), SSML 변환(속도·피치·볼륨·정지) |
-| `TTS/long_tts.py` | ElevenLabs MP3 / Gemini WAV | 위 둘 중 하나 | 긴 단일 화자 대본을 나눠 합성·병합하고 길이로 절단 검증. [긴 텍스트 분할](#긴-텍스트-분할) |
+| `TTS/azure_tts.py` | WAV (`_azure_tts.wav`) | `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION` | Azure AI Speech REST, 표준 라이브러리만, SSML 배속 0.5~2.0 |
+| `TTS/long_tts.py` | ElevenLabs MP3 / Gemini·Azure WAV | 제공자의 키 | 긴 단일 화자 대본을 나눠 합성·병합하고 길이로 절단 검증. [긴 텍스트 분할](#긴-텍스트-분할) |
 
 입력은 모두 `.txt`·`.md` 파일이다. 텍스트를 인자로 직접 받는 것은 `openai_tts.py`뿐이다.
 
@@ -169,20 +171,38 @@ Mac의 짧은 영어·한국어 표본은 실합성과 사용자 청취에서 �
 
 Simba 3.x는 감정 스타일 태그를 수락하지만 음성에 적용하지 않는다. `--emotion`과 그 안의 `--cadence`는 이 제약을 따른다. 모델·음성별 현재 지원 범위는 [Speechify 모델 문서](https://docs.speechify.ai/build/guides/concepts/models)와 API 모델·음성 목록을 확인한다.
 
+## Azure TTS
+
+Azure AI Speech REST API를 표준 라이브러리로 부른다. 기본 음성은 `ko-KR-SunHiNeural`이고 `--list-voices --language-code ko-KR`로 목록을 본다. 출력은 24kHz 16bit 모노 WAV라 변환 단계가 없다.
+
+옵션: `--voice` / `--language-code ko-KR` / `--tempo`(배율) 또는 `--rate +50%` / `--pitch +2st` / `--style cheerful` / `--output-format` / `--output <경로>` / `--retries 0`.
+
+`long_tts.py`의 Azure 발화 속도(7.15자/초)는 한국어 값이다. `ko-`로 시작하지 않는 음성은 `--chars-per-sec`를 주지 않으면 호출 전에 멈춘다.
+
+다른 제공자와 다른 점:
+
+- **배속이 합성 단계에서 바뀐다.** `--tempo`는 SSML `prosody rate`로 들어가 음성 자체가 빨라진다(ffmpeg `atempo` 후처리가 아님). 발화 속도는 배속에 정비례한다. `ko-KR-HyunsuNeural` 한국어 1,464자가 1.0·1.5·2.0배속에서 각각 204.7·136.4·102.3초였다. 범위는 0.5~2.0이고 밖의 값은 말없이 잘린다. 2배보다 빠르게 들으려면 합성 후 `atempo`를 더한다.
+- **한도는 문자 수가 아니라 오디오 길이다.** 요청당 생성 오디오가 10분까지다(공식 한도). 2배속이면 같은 10분에 글자가 두 배 들어간다. 긴 대본은 `long_tts.py --provider azure`로 나눈다.
+- **F0(무료) 등급은 60초에 요청 20건, 월 50만 자다.** 조각을 잘게 쪼개면 요청 수 한도에 먼저 닿는다. `--retries N`을 주면 429 응답 때 `Retry-After`를 따라(회당 최대 30초) N번까지 다시 시도한다. 기본은 0이고 `long_tts.py`는 3을 준다. 4만 자짜리 오디오북 하나가 월 무료량의 8%를 쓴다.
+- **Windows에서 키를 등록하기 전에 띄운 셸은 새 사용자 환경 변수를 물려받지 못한다.** 프로세스 환경에 키가 없으면 사용자 환경 변수(레지스트리)에서 읽는다.
+
+출처: [Azure Speech 한도](https://learn.microsoft.com/azure/ai-services/speech-service/speech-services-quotas-and-limits)
+
 ## 긴 텍스트 분할
 
 TTS API는 요청당 문자 상한 안에서도 긴 입력을 에러 없이 망가뜨린다(HTTP 200). eleven_v3는 약 550초에서 뒷부분이 잘리고, eleven_v4는 약 293초를 넘으면 중간을 건너뛰며, Gemini는 약 655초(출력 16,384토큰)에서 잘린다. 한국어는 1자가 1음절이라 영어 기준의 "5,000자 ≈ 5분" 안내보다 훨씬 빨리 이 길이에 닿는다.
 
-**단일 화자 대본은 `long_tts.py`에 맡긴다.** 모델별 발화 속도로 예상 길이를 계산해 문단·문장 경계에서 나누고(v4 240초, v3·Gemini 300초), 조각마다 합성해 무손실로 잇고, 실제 길이가 예상의 85% 미만이면서 10초 넘게 부족하면 실패로 끝낸다.
+**단일 화자 대본은 `long_tts.py`에 맡긴다.** 모델별 발화 속도로 예상 길이를 계산해 문단·문장 경계에서 나누고(v4 240초, v3·Gemini·Azure 300초), 조각마다 합성해 무손실로 잇고, 실제 길이가 예상의 85% 미만이면서 10초 넘게 부족하면 실패로 끝낸다.
 
 ```bash
 python TTS/long_tts.py script.txt                              # ElevenLabs eleven_v4, Yuna
 python TTS/long_tts.py script.txt --model eleven_v3 --speed 1.2
 python TTS/long_tts.py script.txt --provider gemini            # gemini-3.8-flash-tts, Puck
+python TTS/long_tts.py script.txt --provider azure --speed 2.0  # ko-KR-HyunsuNeural, 2배속
 python TTS/long_tts.py script.txt --compact-copy               # + 1.5배속 사본(_compact.mp3, 목표 1.8MB)
 ```
 
-옵션: `--provider elevenlabs|gemini` / `--model` / `--voice` / `--speed`(ElevenLabs, 기본 1.2) / `--chars-per-sec`(speed 1.0 기준 자/초) / `--chunk-seconds` / `--compact-copy` / `--tempo 1.5` / `--target-mb 1.8`. ffmpeg·ffprobe가 필요하다.
+옵션: `--provider elevenlabs|gemini|azure` / `--model` / `--voice` / `--speed`(ElevenLabs 0.7~1.2·기본 1.2, Azure 0.5~2.0·기본 1.0) / `--chars-per-sec`(speed 1.0 기준 자/초) / `--chunk-seconds` / `--compact-copy` / `--tempo 1.5` / `--target-mb 1.8`. ffmpeg·ffprobe가 필요하다.
 
 발화 속도 상수는 **한국어 대본으로 잰 값**이다. 다른 언어나 스크립트 표에 없는 모델은 `--chars-per-sec`를 준다(표에 없는 모델은 이 값이 없으면 멈춘다). 값이 실제보다 크면 멀쩡한 오디오를 절단으로 오판하고, 작으면 조각이 길어져 상한에 닿는다. 길이 검증은 끝부분 절단을 잡지만 몇 초짜리 중간 누락은 잡지 못하므로, 완결성이 중요하면 결과를 STT로 전사해 대본과 대조한다.
 

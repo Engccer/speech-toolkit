@@ -1,9 +1,9 @@
 ---
 name: speech-toolkit
-description: "텍스트→음성(TTS)과 음성→텍스트(STT) 변환 CLI 스크립트 모음. TTS는 Gemini/ElevenLabs/OpenAI/Speechify 4종, STT는 Daglo/Deepgram/ElevenLabs/Gemini/Gemini 3.5 Transcribe/Meta Muse/Mistral 7종. 다음 요청에 사용: 텍스트를 음성으로 변환, 나레이션·오디오북 음원 생성, 음성·영상 파일 전사, 회의 녹음 텍스트 변환, TTS, STT, transcription. Use for text-to-speech (TTS) and speech-to-text (STT): generate narration audio from text or transcribe audio/video files to text with multiple AI providers."
+description: "텍스트→음성(TTS)과 음성→텍스트(STT) 변환 CLI 스크립트 모음. TTS는 Gemini/ElevenLabs/OpenAI/Speechify/Azure 5종, STT는 Daglo/Deepgram/ElevenLabs/Gemini/Gemini 3.5 Transcribe/Meta Muse/Mistral 7종. 다음 요청에 사용: 텍스트를 음성으로 변환, 나레이션·오디오북 음원 생성, 음성·영상 파일 전사, 회의 녹음 텍스트 변환, TTS, STT, transcription. Use for text-to-speech (TTS) and speech-to-text (STT): generate narration audio from text or transcribe audio/video files to text with multiple AI providers."
 license: MIT
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # speech-toolkit
@@ -27,7 +27,8 @@ metadata:
 | TTS(감정·억양 자연어 지시, Realtime) | `TTS/openai_tts.py` | `OPENAI_API_KEY` |
 | TTS(한국어 음성 프리셋·다화자 대본) | `TTS/elevenlabs_tts.py` | `ELEVENLABS_API_KEY` |
 | TTS(SSML 세밀 제어: 속도·피치·정지) | `TTS/speechify_tts.py` | `SPEECHIFY_API_KEY` |
-| TTS(긴 단일 화자 대본: 분할·병합·길이 검증) | `TTS/long_tts.py` | `ELEVENLABS_API_KEY` 또는 `GEMINI_API_KEY` |
+| TTS(표준 라이브러리만, 합성 단계 2배속까지) | `TTS/azure_tts.py` | `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION` |
+| TTS(긴 단일 화자 대본: 분할·병합·길이 검증) | `TTS/long_tts.py` | 제공자(ElevenLabs·Gemini·Azure)의 키 |
 | STT(빠름·길이 제한 없음, 기본 한국어) | `STT/deepgram_stt.py` | `DEEPGRAM_API_KEY` |
 | STT(장시간·자연스러운 한국어) | `STT/gemini_stt.py` | `GEMINI_API_KEY` |
 | STT(단어 타임스탬프·도메인 용어, 긴 파일은 자동 분할) | `STT/gemini_transcribe_stt.py` | `GEMINI_API_KEY` |
