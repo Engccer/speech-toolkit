@@ -157,7 +157,7 @@ def main():
         with open(input_file, "rb") as audio_file:
             response = client.speech_to_text.convert(
                 file=audio_file,
-                model_id="scribe_v2",
+                model_id="scribe_v3",
                 diarize=True,
                 tag_audio_events=True,
             )

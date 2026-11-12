@@ -6,18 +6,18 @@
 확정(final)이 따로 흐르며, 마이크 캡처를 위해 PortAudio 같은 네이티브 의존성이 필요하다.
 이 저장소의 공통 규약(폴더 자동 탐색, `<입력>_<service>.<확장자>` 출력)이 하나도 성립하지 않는다.
 
-실시간이 필요하면 각 프로바이더의 스트리밍 엔드포인트를 직접 쓴다. 2026-09 기준 실태:
+실시간이 필요하면 각 프로바이더의 스트리밍 엔드포인트를 직접 쓴다. 2026-09 기준 실태(ElevenLabs 행은 2026-11 갱신):
 
 | 프로바이더 | 실시간 엔드포인트 | 실시간 화자 분리 | 세션 상한 |
 |---|---|---|---|
 | Meta Muse | `wss://api.meta.ai/v1/asr/realtime` | DIARIZATION 모드 | 60분 |
 | Deepgram | `wss://api.deepgram.com/v1/listen` | `diarize=true` | 사실상 없음 |
 | Gemini 3.5 Transcribe Live | Live API (`gemini-3.5-transcribe-live`) | **미지원** | **10분** |
-| ElevenLabs Scribe v2 Realtime | WebSocket (`scribe_v2_realtime`) | **미지원** | 문서 미기재 |
+| ElevenLabs Scribe v3 Live | WebSocket (`scribe_v3_live`) | 지원(미검증) | 문서 미기재 |
 
 주의점 두 가지(→ [사례](cases.md#실시간-스트리밍은-이-저장소의-범위가-아니다-referencesrealtimemd)):
 
-- **위 상용 API들의 실시간 화자 분리는 화자 수를 계통적으로 과소 계수한다.** 같은 오디오·같은
+- **위 상용 API들(2026-11에 나온 Scribe v3 Live는 미검증)의 실시간 화자 분리는 화자 수를 계통적으로 과소 계수한다.** 같은 오디오·같은
   모델에서 스트리밍이 배치보다 적은 화자를 찾는다. 배치 전제로 만든 화자 분리를
   스트리밍에 얹은 구현으로 보이므로, 이들의 화자 라벨을 신뢰하는 설계를 세우지 말 것.
   다만 **온라인 화자 분리 자체가 불가능한 것은 아니다.** 증분 클러스터링·화자 캐시로 처음부터
