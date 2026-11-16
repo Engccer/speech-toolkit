@@ -86,7 +86,8 @@ def main():
         print('설정 명령: export DEEPGRAM_API_KEY="your-api-key"  (Windows: setx DEEPGRAM_API_KEY "your-api-key")')
         return
 
-    client = DeepgramClient(api_key=api_key)
+    # 사전 녹음 전송·처리는 긴 파일(2~3시간)에서 SDK 기본 읽기 타임아웃(60초)을 넘기므로 넉넉히 둔다.
+    client = DeepgramClient(api_key=api_key, timeout=1800)
 
     # 지원 확장자
     SUPPORTED_EXTENSIONS = [".mp3", ".m4a", ".wav", ".flac", ".aac", ".ogg", ".aiff", ".mp4", ".mov", ".avi", ".webm"]
