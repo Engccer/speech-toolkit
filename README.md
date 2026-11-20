@@ -19,9 +19,20 @@ Python 3.12 기준. `STT/daglo_stt.py`만 ngrok 계정(pyngrok)이 추가로 필
 
 스크립트별 용도·필요한 환경변수·공통 규약은 [SKILL.md](SKILL.md), 스크립트별 옵션은 [references/](references/) 문서나 `python <script> --help`로 본다. API 키는 환경변수로만 읽는다.
 
+## 스크립트 수정 후 확인
+
+새 스크립트도 [공통 사용 규칙](SKILL.md)을 따른다. API 키가 없으면 한국어로 오류를 알리고, `--help`는 키 없이 열 수 있게 한다. 옵션을 바꾸면 [음성 합성](references/tts.md) 또는 [받아쓰기](references/stt.md) 설명과 해당 옵션을 쓰는 예시를 갱신한다. 서비스를 추가하거나 빼면 서비스별 설명서의 표와 스킬 선택표를 고치고, SKILL.md의 설명과 README에 적힌 서비스 수도 갱신한다.
+
+동작을 바꾸면 해당 테스트를 추가하고 저장소 루트에서 `python -m unittest discover -s tests`를 실행한다. 테스트에는 네트워크, API 키, 서비스별 SDK가 필요 없다.
+
 ## 관련 프로젝트
 
 시각장애 사용자를 위한 에이전트 스킬 번들 [skills-for-the-blind](https://github.com/Engccer/skills-for-the-blind)의 멤버 스킬이다.
+
+다음 스킬은 독립적으로 작동하도록 이 저장소의 합성 스크립트를 사본으로 포함한다. 원본을 고치면 해당 사본에도 같은 변경이 필요한지 확인한다.
+
+- [abridge](https://github.com/Engccer/abridge)의 `scripts/`에는 `elevenlabs_tts.py`가 있다.
+- [agent-cli-tts-summary](https://github.com/Engccer/agent-cli-tts-summary)의 `assets/tts/`에는 `elevenlabs_tts.py`, `gemini_tts.py`, `azure_tts.py`가 있다.
 
 ## License
 

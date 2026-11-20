@@ -41,10 +41,10 @@
 
 채점:
 - T4-a (1) `references/tts.md` ElevenLabs 옵션 줄을 갱신한다.
-- T4-b (1) 자매 저장소 사본 두 곳(abridge `scripts/elevenlabs_tts.py`, agent-cli-tts-summary `assets/tts/elevenlabs_tts.py`)을 같은 내용으로 갱신해 함께 커밋·푸시한다(사본 머리의 출처 주석 유지).
+- T4-b (1) 자매 저장소 사본 두 곳(abridge `scripts/elevenlabs_tts.py`, agent-cli-tts-summary `assets/tts/elevenlabs_tts.py`)을 같은 변경을 반영할 대상으로 짚는다(사본 머리의 출처 주석 유지).
 - T4-c 공개 저장소라 절대경로·실키·비공개 스킬 이름을 남기지 않는다.
-- T4-d (2) 키가 없으면 한국어 오류 메시지. 종료 방식은 문서의 두 방식 중 하나를 고르며, `--help`는 키 없이 동작해야 한다. "나머지 6개" 개수가 실제(7개)와 다름을 알아채면 가산.
-- T4-e (2) 갱신할 곳으로 SKILL.md 라우팅 표·references/stt.md 표들에 더해 개수 표기(description·README·CLAUDE.md의 STT 7종/11개)를 든다. 개정 전 판에서는 README.md 표도 든다.
+- T4-d (2) 키가 없으면 한국어 오류 메시지. 기존 스크립트는 키가 없을 때 종료 코드가 다르므로 새 스크립트의 실패 판정 방법을 명시하며, `--help`는 키 없이 동작해야 한다.
+- T4-e (2) 갱신할 곳으로 SKILL.md 라우팅 표·references/stt.md 표들에 더해 개수 표기(SKILL.md의 description과 README)를 든다. 개정 전 판에서는 README.md 표도 든다.
 
 ## T5. 평범한 하루 (별도 시험자)
 

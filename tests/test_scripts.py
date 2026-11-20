@@ -27,7 +27,7 @@ def load(rel_path):
 
 
 class HelpWithoutKeyTest(unittest.TestCase):
-    """--help는 API 키 없이 동작해야 한다(CLAUDE.md 공통 규약)."""
+    """--help는 API 키 없이 동작해야 한다(README의 스크립트 수정 규칙)."""
 
     def run_help(self, rel_path):
         with tempfile.TemporaryDirectory() as home:

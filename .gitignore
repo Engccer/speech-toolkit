@@ -7,3 +7,6 @@ __pycache__/
 테스트_*.txt
 .env
 .sanitize.local.md
+
+/CLAUDE.md
+/AGENTS.md

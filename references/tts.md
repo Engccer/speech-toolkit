@@ -173,7 +173,7 @@ Simba 3.x는 감정 스타일 태그를 수락하지만 음성에 적용하지 �
 
 ## Azure TTS
 
-Azure AI Speech REST API를 표준 라이브러리로 부른다. 기본 음성은 `ko-KR-SunHiNeural`이고 `--list-voices --language-code ko-KR`로 목록을 본다. 출력은 24kHz 16bit 모노 WAV라 변환 단계가 없다.
+Azure AI Speech REST API를 표준 라이브러리로 부른다. 기본 음성은 `ko-KR-SunHiNeural`이고 `--list-voices --language-code ko-KR`로 목록을 본다. 목록도 Azure에서 받아오므로 API 키와 리전(또는 직접 지정한 엔드포인트)이 필요하다. 출력은 24kHz 16bit 모노 WAV라 변환 단계가 없다.
 
 옵션: `--voice` / `--language-code ko-KR` / `--tempo`(배율) 또는 `--rate +50%` / `--pitch +2st` / `--style cheerful` / `--output-format` / `--output <경로>` / `--retries 0`.
 
